@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tactical Voice</title>
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  <script>
+    // Polyfill for socket.io and other libs that expect Node.js globals
+    var global = window;
+    var process = { env: {} };
+  </script>
+  <style>
+    /* Inter font - self-hosted alternative or system fonts */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <app-root></app-root>
+</body>
+
+</html>
