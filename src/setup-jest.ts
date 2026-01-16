@@ -1,3 +1,45 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:ad05e4036ee15b6d9bd99c8014461e25f83cbdba7e911cba6f4c6e867901ebb0
-size 1073
+import { setupZoneTestEnv } from 'jest-preset-angular/setup-env/zone';
+
+setupZoneTestEnv();
+
+// Mock Electron API
+Object.defineProperty(window, 'electronAPI', {
+  value: {
+    minimize: jest.fn(),
+    maximize: jest.fn(),
+    close: jest.fn(),
+    toggleOverlay: jest.fn(),
+    updateOverlay: jest.fn(),
+    onHotkey: jest.fn(),
+    removeHotkeyListener: jest.fn(),
+    onOverlayData: jest.fn()
+  },
+  writable: true
+});
+
+// Mock MediaDevices
+Object.defineProperty(navigator, 'mediaDevices', {
+  value: {
+    getUserMedia: jest.fn().mockResolvedValue({
+      getTracks: () => [],
+      getAudioTracks: () => [{ enabled: true, stop: jest.fn() }]
+    }),
+    enumerateDevices: jest.fn().mockResolvedValue([])
+  },
+  writable: true
+});
+
+// Mock AudioContext
+class MockAudioContext {
+  createMediaStreamSource = jest.fn().mockReturnValue({
+    connect: jest.fn()
+  });
+  createAnalyser = jest.fn().mockReturnValue({
+    fftSize: 256,
+    frequencyBinCount: 128,
+    getByteFrequencyData: jest.fn()
+  });
+  close = jest.fn();
+}
+
+(global as any).AudioContext = MockAudioContext;

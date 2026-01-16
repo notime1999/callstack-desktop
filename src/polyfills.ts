@@ -1,3 +1,17 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:f67703404dbec532212c621b92117a00594143a677e25955d31ebf663760c572
-size 403
+/**
+ * Polyfills for browser compatibility with Node.js-style libraries
+ */
+
+// Socket.io and other libs expect 'global' to be defined
+(window as any).global = window;
+
+// Some libs expect process.env
+(window as any).process = {
+  env: {},
+  nextTick: (fn: Function) => setTimeout(fn, 0)
+};
+
+// Buffer polyfill (if needed)
+(window as any).Buffer = (window as any).Buffer || {
+  isBuffer: () => false
+};

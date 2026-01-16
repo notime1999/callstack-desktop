@@ -1,3 +1,14 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:712fd931ca1d19d32102fd8d70932080335355370968590b4007b1fd91b37778
-size 490
+import './polyfills';
+
+import { bootstrapApplication } from '@angular/platform-browser';
+import { provideRouter, withHashLocation } from '@angular/router';
+import { provideAnimations } from '@angular/platform-browser/animations';
+import { AppComponent } from './app/app.component';
+import { routes } from './app/app.routes';
+
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideRouter(routes, withHashLocation()),
+    provideAnimations()
+  ]
+}).catch(err => console.error(err));
