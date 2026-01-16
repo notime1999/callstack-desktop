@@ -1,0 +1,12 @@
+[2026-01-16T17:52:10.680Z] Log initialized at: C:\Users\mauri\Desktop\CallStack\apps\desktop\app.log
+[2026-01-16T17:52:10.686Z] App starting - isDev: true
+[2026-01-16T17:52:10.686Z] Exec path: C:\Users\mauri\Desktop\CallStack\apps\desktop\node_modules\electron\dist\electron.exe
+[2026-01-16T17:52:10.686Z] __dirname: C:\Users\mauri\Desktop\CallStack\apps\desktop\electron
+[2026-01-16T17:52:10.741Z] App ready, creating main window
+[2026-01-16T17:52:10.742Z] Creating main window...
+[2026-01-16T17:52:10.742Z] Screen size: 2560x1392
+[2026-01-16T17:52:10.786Z] Loading dev URL: http://localhost:4200
+[2026-01-16T17:52:11.452Z] Main window finished loading
+[2026-01-16T17:54:45.553Z] Main window finished loading
+[2026-01-16T17:57:09.785Z] Main window finished loading
+[2026-01-16T17:58:00.196Z] Main window finished loading
