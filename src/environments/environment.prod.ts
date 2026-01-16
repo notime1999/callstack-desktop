@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  serverUrl: 'http://82.56.97.200:3001'
+  serverUrl: 'https://callstack-be-production.up.railway.app'
 };
