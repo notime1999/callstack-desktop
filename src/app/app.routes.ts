@@ -1,3 +1,39 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:1e512358417a54d4189c1bcd6620d7bece851c8a8943c9a8cb5569030ac1e4f9
-size 964
+import { Routes } from '@angular/router';
+
+export const routes: Routes = [
+  {
+    path: '',
+    redirectTo: 'home',
+    pathMatch: 'full'
+  },
+  {
+    path: 'home',
+    loadComponent: () =>
+      import('./features/home/home.component').then(m => m.HomeComponent)
+  },
+  {
+    path: 'lobby',
+    loadComponent: () =>
+      import('./features/lobby/lobby.component').then(m => m.LobbyComponent)
+  },
+  {
+    path: 'pre-match',
+    loadComponent: () =>
+      import('./features/pre-match/pre-match.component').then(m => m.PreMatchComponent)
+  },
+  {
+    path: 'match',
+    loadComponent: () =>
+      import('./features/match/match.component').then(m => m.MatchComponent)
+  },
+  {
+    path: 'post-match',
+    loadComponent: () =>
+      import('./features/post-match/post-match.component').then(m => m.PostMatchComponent)
+  },
+  {
+    path: 'overlay',
+    loadComponent: () =>
+      import('./features/overlay/overlay.component').then(m => m.OverlayComponent)
+  }
+];
