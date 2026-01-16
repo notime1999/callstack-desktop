@@ -1,6 +1,6 @@
 {
 	"name": "@tactical-voice/desktop",
-	"version": "0.1.1",
+	"version": "0.1.7",
 	"private": true,
 	"main": "electron/main.js",
 	"author": "Tactical Voice Team",
@@ -35,6 +35,29 @@
 			"electron/**/*.js",
 			"package.json"
 		],
+		"extraResources": [
+			{
+				"from": "node_modules/electron-updater",
+				"to": "node_modules/electron-updater"
+			},
+			{
+				"from": "node_modules/builder-util-runtime",
+				"to": "node_modules/builder-util-runtime"
+			},
+			{
+				"from": "node_modules/lazy-val",
+				"to": "node_modules/lazy-val"
+			},
+			{
+				"from": "node_modules/semver",
+				"to": "node_modules/semver"
+			},
+			{
+				"from": "node_modules/lodash.isequal",
+				"to": "node_modules/lodash.isequal"
+			}
+		],
+		"asar": true,
 		"publish": {
 			"provider": "github",
 			"owner": "notime1999",

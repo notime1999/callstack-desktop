@@ -2,9 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // Window controls
-  minimizeWindow: () => ipcRenderer.send('window-minimize'),
-  maximizeWindow: () => ipcRenderer.send('window-maximize'),
-  closeWindow: () => ipcRenderer.send('window-close'),
+  minimize: () => ipcRenderer.send('window-minimize'),
+  maximize: () => ipcRenderer.send('window-maximize'),
+  close: () => ipcRenderer.send('window-close'),
   isMaximized: () => ipcRenderer.invoke('window-is-maximized'),
   
   // Platform info

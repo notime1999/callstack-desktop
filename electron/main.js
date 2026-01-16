@@ -26,8 +26,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
-const electron_updater_1 = require("electron-updater");
 let mainWindow = null;
+let autoUpdater = null;
 // Logging setup
 const logPath = path.join(electron_1.app.getPath('userData'), 'logs');
 if (!fs.existsSync(logPath)) {
@@ -40,53 +40,83 @@ function log(message) {
     console.log(message);
     fs.appendFileSync(logFile, logMessage);
 }
-// Auto-updater configuration
-electron_updater_1.autoUpdater.autoDownload = false;
-electron_updater_1.autoUpdater.autoInstallOnAppQuit = true;
-electron_updater_1.autoUpdater.on('checking-for-update', () => {
-    log('[AutoUpdater] Checking for updates...');
-});
-electron_updater_1.autoUpdater.on('update-available', (info) => {
-    log(`[AutoUpdater] Update available: ${info.version}`);
-    if (mainWindow) {
-        const { dialog } = require('electron');
-        dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            title: 'Aggiornamento disponibile',
-            message: `È disponibile una nuova versione (${info.version}). Vuoi scaricarla?`,
-            buttons: ['Scarica', 'Più tardi']
-        }).then((result) => {
-            if (result.response === 0) {
-                electron_updater_1.autoUpdater.downloadUpdate();
+// Try to load electron-updater
+function initAutoUpdater() {
+    try {
+        // Try multiple paths for electron-updater
+        let updaterModule;
+        const possiblePaths = [
+            'electron-updater',
+            path.join(process.resourcesPath, 'node_modules', 'electron-updater'),
+            path.join(__dirname, '..', 'node_modules', 'electron-updater'),
+            path.join(electron_1.app.getAppPath(), 'node_modules', 'electron-updater')
+        ];
+        for (const modulePath of possiblePaths) {
+            try {
+                updaterModule = require(modulePath);
+                log(`[AutoUpdater] Module loaded from: ${modulePath}`);
+                break;
+            }
+            catch (e) {
+                log(`[AutoUpdater] Not found at: ${modulePath}`);
+            }
+        }
+        if (!updaterModule) {
+            throw new Error('electron-updater not found in any path');
+        }
+        autoUpdater = updaterModule.autoUpdater;
+        log('[AutoUpdater] Module loaded successfully');
+        autoUpdater.autoDownload = false;
+        autoUpdater.autoInstallOnAppQuit = true;
+        autoUpdater.on('checking-for-update', () => {
+            log('[AutoUpdater] Checking for updates...');
+        });
+        autoUpdater.on('update-available', (info) => {
+            log(`[AutoUpdater] Update available: ${info.version}`);
+            if (mainWindow) {
+                electron_1.dialog.showMessageBox(mainWindow, {
+                    type: 'info',
+                    title: 'Aggiornamento disponibile',
+                    message: `È disponibile una nuova versione (${info.version}). Vuoi scaricarla?`,
+                    buttons: ['Scarica', 'Più tardi']
+                }).then((result) => {
+                    if (result.response === 0) {
+                        autoUpdater.downloadUpdate();
+                    }
+                });
             }
         });
-    }
-});
-electron_updater_1.autoUpdater.on('update-not-available', () => {
-    log('[AutoUpdater] No updates available');
-});
-electron_updater_1.autoUpdater.on('download-progress', (progress) => {
-    log(`[AutoUpdater] Download progress: ${progress.percent.toFixed(1)}%`);
-});
-electron_updater_1.autoUpdater.on('update-downloaded', (info) => {
-    log(`[AutoUpdater] Update downloaded: ${info.version}`);
-    if (mainWindow) {
-        const { dialog } = require('electron');
-        dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            title: 'Aggiornamento pronto',
-            message: 'L\'aggiornamento è stato scaricato. L\'app si riavvierà per installarlo.',
-            buttons: ['Riavvia ora', 'Più tardi']
-        }).then((result) => {
-            if (result.response === 0) {
-                electron_updater_1.autoUpdater.quitAndInstall();
+        autoUpdater.on('update-not-available', () => {
+            log('[AutoUpdater] No updates available');
+        });
+        autoUpdater.on('download-progress', (progress) => {
+            log(`[AutoUpdater] Download progress: ${progress.percent.toFixed(1)}%`);
+        });
+        autoUpdater.on('update-downloaded', (info) => {
+            log(`[AutoUpdater] Update downloaded: ${info.version}`);
+            if (mainWindow) {
+                electron_1.dialog.showMessageBox(mainWindow, {
+                    type: 'info',
+                    title: 'Aggiornamento pronto',
+                    message: 'L\'aggiornamento è stato scaricato. L\'app si riavvierà per installarlo.',
+                    buttons: ['Riavvia ora', 'Più tardi']
+                }).then((result) => {
+                    if (result.response === 0) {
+                        autoUpdater.quitAndInstall();
+                    }
+                });
             }
         });
+        autoUpdater.on('error', (error) => {
+            log(`[AutoUpdater] Error: ${error.message}`);
+        });
+        return true;
     }
-});
-electron_updater_1.autoUpdater.on('error', (error) => {
-    log(`[AutoUpdater] Error: ${error.message}`);
-});
+    catch (err) {
+        log(`[AutoUpdater] Module not available: ${err.message}`);
+        return false;
+    }
+}
 function createWindow() {
     log('Creating main window...');
     mainWindow = new electron_1.BrowserWindow({
@@ -102,7 +132,6 @@ function createWindow() {
         },
         backgroundColor: '#1a1a2e'
     });
-    // Load the app
     const isDev = !electron_1.app.isPackaged;
     if (isDev) {
         log('Running in development mode');
@@ -115,17 +144,18 @@ function createWindow() {
         log(`Loading: ${indexPath}`);
         mainWindow.loadFile(indexPath);
         // Check for updates after 3 seconds
-        setTimeout(() => {
-            log('Checking for updates...');
-            electron_updater_1.autoUpdater.checkForUpdates().catch((err) => {
-                log(`[AutoUpdater] Check failed: ${err.message}`);
-            });
-        }, 3000);
+        if (autoUpdater) {
+            setTimeout(() => {
+                log('Checking for updates...');
+                autoUpdater.checkForUpdates().catch((err) => {
+                    log(`[AutoUpdater] Check failed: ${err.message}`);
+                });
+            }, 3000);
+        }
     }
     mainWindow.on('closed', () => {
         mainWindow = null;
     });
-    // Log any load errors
     mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
         log(`Failed to load: ${errorCode} - ${errorDescription}`);
     });
@@ -154,6 +184,7 @@ electron_1.ipcMain.handle('window-is-maximized', () => {
 // App lifecycle
 electron_1.app.whenReady().then(() => {
     log('App ready');
+    initAutoUpdater();
     createWindow();
     electron_1.app.on('activate', () => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0) {
