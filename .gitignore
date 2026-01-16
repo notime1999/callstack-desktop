@@ -172,4 +172,6 @@ apps/desktop/.angular/cache/
 apps/desktop/app.log
 apps/desktop/release/
 
-release
+release/
+
+.angular/
