@@ -137,3 +137,43 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Electron specific
+apps/desktop/dist/
+apps/desktop/out/
+apps/desktop/release/
+
+# Temporary files
+*.tmp
+*.temp
+~$*
+.cache/
+
+# Build outputs
+apps/server/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# pnpm
+.pnpm-store/
+
+# Ignore Angular cache files
+apps/desktop/.angular/cache/
+
+# Logs
+apps/desktop/app.log
+apps/desktop/release/
+
+release/
+
+.angular/
+
+.env
