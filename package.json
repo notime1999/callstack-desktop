@@ -38,7 +38,7 @@
 		"publish": {
 			"provider": "github",
 			"owner": "notime1999",
-			"repo": "CallStack"
+			"repo": "callstack-desktop"
 		},
 		"win": {
 			"target": [

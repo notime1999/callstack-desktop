@@ -175,3 +175,5 @@ apps/desktop/release/
 release/
 
 .angular/
+
+.env
