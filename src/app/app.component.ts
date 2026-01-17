@@ -4,6 +4,7 @@ import { RouterOutlet } from '@angular/router';
 import { TitleBarComponent } from './shared/components/title-bar/title-bar.component';
 import { SocketService } from './core/services/socket.service';
 import { HotkeyService } from './core/services/hotkey.service';
+import packageJson from '../../package.json';
 
 @Component({
   selector: 'app-root',
@@ -15,6 +16,7 @@ import { HotkeyService } from './core/services/hotkey.service';
       <main class="app-content">
         <router-outlet></router-outlet>
       </main>
+      <div class="version-badge">v{{ version }}</div>
     </div>
   `,
   styles: [`
@@ -30,6 +32,17 @@ import { HotkeyService } from './core/services/hotkey.service';
       flex: 1;
       overflow: auto;
     }
+
+    .version-badge {
+      position: fixed;
+      bottom: 8px;
+      right: 12px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.3);
+      font-family: monospace;
+      pointer-events: none;
+      z-index: 1000;
+    }
   `]
 })
 export class AppComponent implements OnInit {
@@ -37,6 +50,7 @@ export class AppComponent implements OnInit {
   private hotkeyService = inject(HotkeyService);
 
   isMatchMode = false;
+  version = packageJson.version;
 
   ngOnInit(): void {
     // Connect to server
