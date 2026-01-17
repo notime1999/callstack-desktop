@@ -92,7 +92,7 @@ interface AudioDevice {
       <!-- Noise Suppression -->
       <div class="setting-group">
         <label class="option-toggle">
-          <input type="checkbox" [(ngModel)]="noiseSuppression">
+          <input type="checkbox" [(ngModel)]="noiseSuppression" (ngModelChange)="onSettingChange()">
           <span>Noise Suppression</span>
         </label>
       </div>
@@ -100,7 +100,7 @@ interface AudioDevice {
       <!-- Echo Cancellation -->
       <div class="setting-group">
         <label class="option-toggle">
-          <input type="checkbox" [(ngModel)]="echoCancellation">
+          <input type="checkbox" [(ngModel)]="echoCancellation" (ngModelChange)="onSettingChange()">
           <span>Echo Cancellation</span>
         </label>
       </div>
@@ -110,11 +110,11 @@ interface AudioDevice {
         <label class="setting-label">Voice Activation</label>
         <div class="voice-mode-options">
           <label class="radio-option" [class.selected]="voiceActivation === 'ptt'">
-            <input type="radio" name="voiceMode" value="ptt" [(ngModel)]="voiceActivation">
+            <input type="radio" name="voiceMode" value="ptt" [(ngModel)]="voiceActivation" (ngModelChange)="onSettingChange()">
             Push-to-Talk
           </label>
           <label class="radio-option" [class.selected]="voiceActivation === 'vad'">
-            <input type="radio" name="voiceMode" value="vad" [(ngModel)]="voiceActivation">
+            <input type="radio" name="voiceMode" value="vad" [(ngModel)]="voiceActivation" (ngModelChange)="onSettingChange()">
             Voice Activity
           </label>
         </div>
@@ -128,7 +128,8 @@ interface AudioDevice {
             class="volume-slider"
             min="0" 
             max="100" 
-            [(ngModel)]="vadSensitivity">
+            [(ngModel)]="vadSensitivity"
+            (ngModelChange)="onSettingChange()">
           <span class="volume-value">{{ vadSensitivity }}%</span>
         </div>
       }
@@ -392,8 +393,46 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
   private loopbackAudioElement: HTMLAudioElement | null = null;
 
   async ngOnInit(): Promise<void> {
+    this.loadSavedSettings();
     await this.loadDevices();
     await this.startMicTest();
+  }
+
+  private loadSavedSettings(): void {
+    try {
+      const saved = localStorage.getItem('clutch-audio-settings');
+      if (saved) {
+        const settings = JSON.parse(saved);
+        this.selectedInput = settings.inputDevice || '';
+        this.selectedOutput = settings.outputDevice || '';
+        this.inputVolume = settings.inputVolume ?? 100;
+        this.noiseSuppression = settings.noiseSuppression ?? true;
+        this.echoCancellation = settings.echoCancellation ?? true;
+        this.voiceActivation = settings.voiceActivation || 'ptt';
+        this.vadSensitivity = settings.vadSensitivity ?? 50;
+        console.log('[AudioSettings] Loaded saved settings:', settings);
+      }
+    } catch (error) {
+      console.error('[AudioSettings] Failed to load saved settings:', error);
+    }
+  }
+
+  private saveSettings(): void {
+    try {
+      const settings = {
+        inputDevice: this.selectedInput,
+        outputDevice: this.selectedOutput,
+        inputVolume: this.inputVolume,
+        noiseSuppression: this.noiseSuppression,
+        echoCancellation: this.echoCancellation,
+        voiceActivation: this.voiceActivation,
+        vadSensitivity: this.vadSensitivity
+      };
+      localStorage.setItem('clutch-audio-settings', JSON.stringify(settings));
+      console.log('[AudioSettings] Saved settings:', settings);
+    } catch (error) {
+      console.error('[AudioSettings] Failed to save settings:', error);
+    }
   }
 
   private async loadDevices(): Promise<void> {
@@ -422,9 +461,21 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
       this.inputDevices.set(inputs);
       this.outputDevices.set(outputs);
 
-      // Set defaults
-      if (inputs.length > 0) this.selectedInput = inputs[0].deviceId;
-      if (outputs.length > 0) this.selectedOutput = outputs[0].deviceId;
+      // Set defaults only if not already set from saved settings
+      if (!this.selectedInput && inputs.length > 0) {
+        this.selectedInput = inputs[0].deviceId;
+      }
+      if (!this.selectedOutput && outputs.length > 0) {
+        this.selectedOutput = outputs[0].deviceId;
+      }
+      
+      // Verify saved devices still exist, otherwise use default
+      if (this.selectedInput && !inputs.find(d => d.deviceId === this.selectedInput)) {
+        this.selectedInput = inputs.length > 0 ? inputs[0].deviceId : '';
+      }
+      if (this.selectedOutput && !outputs.find(d => d.deviceId === this.selectedOutput)) {
+        this.selectedOutput = outputs.length > 0 ? outputs[0].deviceId : '';
+      }
     } catch (error) {
       console.error('Failed to load audio devices:', error);
     }
@@ -478,6 +529,11 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
   }
 
   onVolumeChange(): void {
+    this.emitSettings();
+  }
+
+  onSettingChange(): void {
+    this.saveSettings();
     this.emitSettings();
   }
 
@@ -584,6 +640,7 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
   }
 
   private emitSettings(): void {
+    this.saveSettings();
     this.settingsChange.emit({
       inputDevice: this.selectedInput,
       outputDevice: this.selectedOutput,

@@ -1,7 +1,8 @@
-import { Component, Output, EventEmitter, signal } from '@angular/core';
+import { Component, Output, EventEmitter, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AudioSettingsComponent } from '../audio-settings/audio-settings.component';
+import { VoiceService } from '../../../core/services/voice.service';
 import { DEFAULT_HOTKEYS, HotkeyConfig } from '../../types';
 
 type SettingsTab = 'audio' | 'hotkeys' | 'overlay' | 'account';
@@ -637,6 +638,8 @@ export class SettingsModalComponent {
   updateMessage = '';
   hasUpdate = false;
 
+  private voiceService = inject(VoiceService);
+
   onBackdropClick(event: MouseEvent) {
     if ((event.target as HTMLElement).classList.contains('modal-backdrop')) {
       this.close.emit();
@@ -645,6 +648,8 @@ export class SettingsModalComponent {
 
   onAudioSettingsChange(settings: any) {
     console.log('Audio settings changed:', settings);
+    // Reload voice service settings to apply PTT/VAD changes immediately
+    this.voiceService.reloadAudioSettings();
   }
 
   startRecordingHotkey(key: keyof HotkeyConfig) {

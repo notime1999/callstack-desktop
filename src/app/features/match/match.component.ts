@@ -65,33 +65,31 @@ import { VoiceMode, Player } from '../../shared/types';
         {{ canSpeak() ? '🎤 You can speak' : '🔇 Muted by mode' }}
       </div>
 
-      <!-- Players List (for IGL/Coach to mute individuals) -->
-      @if (isIGL() || currentPlayer()?.role === 'coach') {
-        <div class="players-list-section">
-          <h3>TEAM</h3>
-          <div class="players-list">
-            @for (player of players(); track player.id) {
-              <div class="player-row" [class.is-me]="player.id === currentPlayer()?.id">
-                <span class="player-info">
-                  <span class="role-badge" [class]="player.role">{{ getRoleEmoji(player.role) }}</span>
-                  <span class="player-name">{{ player.name }}</span>
-                  @if (player.isSpeaking) {
-                    <span class="speaking-indicator">🔊</span>
-                  }
-                </span>
-                @if (player.id !== currentPlayer()?.id && player.role !== 'igl' && player.role !== 'coach') {
-                  <button 
-                    class="btn-mute-player" 
-                    [class.muted]="player.isMuted"
-                    (click)="mutePlayer(player.id)">
-                    {{ player.isMuted ? '🔇' : '🔊' }}
-                  </button>
+      <!-- Players List (visible to everyone) -->
+      <div class="players-list-section">
+        <h3>TEAM</h3>
+        <div class="players-list">
+          @for (player of players(); track player.id) {
+            <div class="player-row" [class.is-me]="player.id === currentPlayer()?.id">
+              <span class="player-info">
+                <span class="role-badge" [class]="player.role">{{ getRoleEmoji(player.role) }}</span>
+                <span class="player-name">{{ player.name }}</span>
+                @if (player.isSpeaking) {
+                  <span class="speaking-indicator">🔊</span>
                 }
-              </div>
-            }
-          </div>
+              </span>
+              @if ((isIGL() || currentPlayer()?.role === 'coach') && player.id !== currentPlayer()?.id && player.role !== 'igl' && player.role !== 'coach') {
+                <button 
+                  class="btn-mute-player" 
+                  [class.muted]="player.isMuted"
+                  (click)="mutePlayer(player.id)">
+                  {{ player.isMuted ? '🔇' : '🔊' }}
+                </button>
+              }
+            </div>
+          }
         </div>
-      }
+      </div>
 
       <!-- IGL Controls -->
       @if (isIGL()) {
@@ -422,14 +420,19 @@ export class MatchComponent implements OnInit, OnDestroy {
 
   @HostListener('window:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
-    // Solo IGL può cambiare modalità
-    if (!this.isIGL()) {
-      // Ma tutti possono usare PTT e mute
-      if (event.code === 'Space') {
-        this.voiceService.startTalking();
-      }
-      return;
+    // PTT e M funzionano per tutti
+    if (event.code === 'Space') {
+      event.preventDefault();
+      this.voiceService.startTalking();
     }
+
+    if (event.key.toLowerCase() === 'm') {
+      event.preventDefault();
+      this.voiceService.toggleMute();
+    }
+
+    // Solo IGL può cambiare modalità e marcare morti
+    if (!this.isIGL()) return;
 
     switch (event.key) {
       case 'F1':
@@ -441,14 +444,6 @@ export class MatchComponent implements OnInit, OnDestroy {
       case 'F3':
         this.changeMode('prep');
         break;
-    }
-
-    if (event.code === 'Space') {
-      this.voiceService.startTalking();
-    }
-
-    if (event.key.toLowerCase() === 'm') {
-      this.voiceService.toggleMute();
     }
 
     if (event.key.toLowerCase() === 'd') {
@@ -474,6 +469,9 @@ export class MatchComponent implements OnInit, OnDestroy {
 
   endMatch() {
     if (this.isIGL()) {
+      // Disable overlay if it was enabled
+      window.electronAPI?.toggleOverlay(false);
+      
       // Reset to lobby mode so everyone can speak again
       this.teamService.resetToLobbyMode();
       this.socketService.endMatch();
@@ -490,6 +488,10 @@ export class MatchComponent implements OnInit, OnDestroy {
     // Listen for match end (IGL ended the match)
     this.socketService.on('match-ended', () => {
       console.log('[Match] Match ended, navigating to lobby');
+      
+      // Disable overlay
+      window.electronAPI?.toggleOverlay(false);
+      
       this.teamService.resetToLobbyMode();
       this.router.navigate(['/lobby']);
     });

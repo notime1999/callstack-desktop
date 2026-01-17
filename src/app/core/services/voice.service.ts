@@ -2,6 +2,7 @@ import { Injectable, inject, signal, effect } from '@angular/core';
 import SimplePeer, { SignalData } from 'simple-peer';
 import { TeamService } from './team.service';
 import { SocketService } from './socket.service';
+import { NoiseSuppressorService } from './noise-suppressor.service';
 import { Player, VoiceMode, PlayerRole, VOICE_RULES } from '../../shared/types';
 
 interface PeerConnection {
@@ -22,8 +23,10 @@ interface DuckingState {
 export class VoiceService {
   private teamService = inject(TeamService);
   private socketService = inject(SocketService);
+  private noiseSuppressor = inject(NoiseSuppressorService);
 
   private localStream: MediaStream | null = null;
+  private processedStream: MediaStream | null = null;  // Stream after RNNoise processing
   private peers = new Map<string, PeerConnection>();
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
@@ -67,15 +70,32 @@ export class VoiceService {
     try {
       console.log('[VoiceService] Initializing...');
       
-      // Get microphone
+      // Load saved audio settings
+      const savedSettings = this.loadAudioSettings();
+      console.log('[VoiceService] Loaded audio settings:', savedSettings);
+      
+      // Get microphone with saved settings - use advanced constraints for better echo/noise cancellation
+      const constraints: MediaTrackConstraints = {
+        // Enhanced echo cancellation
+        echoCancellation: { ideal: savedSettings.echoCancellation ?? true },
+        // Enhanced noise suppression
+        noiseSuppression: { ideal: savedSettings.noiseSuppression ?? true },
+        // Auto gain control helps with echo
+        autoGainControl: { ideal: true },
+        // Sample rate - 48kHz is best for voice
+        sampleRate: { ideal: 48000 },
+        // Channel count - mono is better for voice
+        channelCount: { ideal: 1 }
+      };
+      
+      if (savedSettings.inputDevice) {
+        constraints.deviceId = { exact: savedSettings.inputDevice };
+      }
+      
       this.localStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
+        audio: constraints
       });
-      console.log('[VoiceService] Got microphone access');
+      console.log('[VoiceService] Got microphone access with enhanced settings:', constraints);
 
       // Setup audio analysis for speaking detection
       this.audioContext = new AudioContext();
@@ -88,7 +108,41 @@ export class VoiceService {
       this.masterGainNode = this.audioContext.createGain();
       this.masterGainNode.gain.value = 1.0;
 
-      // Start speaking detection
+      // Apply high-pass filter to reduce low-frequency rumble and some echo
+      const highPassFilter = this.audioContext.createBiquadFilter();
+      highPassFilter.type = 'highpass';
+      highPassFilter.frequency.value = 80; // Cut frequencies below 80Hz
+      highPassFilter.Q.value = 0.7;
+
+      // Apply low-pass filter to cut high-frequency noise
+      const lowPassFilter = this.audioContext.createBiquadFilter();
+      lowPassFilter.type = 'lowpass';
+      lowPassFilter.frequency.value = 8000; // Cut frequencies above 8kHz
+      lowPassFilter.Q.value = 0.7;
+
+      console.log('[VoiceService] Audio filters configured (80Hz-8kHz bandpass)');
+
+      // Initialize RNNoise AI noise suppression if noise suppression is enabled
+      if (savedSettings.noiseSuppression !== false) {
+        try {
+          console.log('[VoiceService] Initializing AI noise suppression (RNNoise)...');
+          this.processedStream = await this.noiseSuppressor.initialize(this.localStream);
+          console.log('[VoiceService] AI noise suppression active - like Krisp!');
+        } catch (error) {
+          console.warn('[VoiceService] AI noise suppression failed, using raw audio:', error);
+          this.processedStream = this.localStream;
+        }
+      } else {
+        this.processedStream = this.localStream;
+        console.log('[VoiceService] AI noise suppression disabled by user');
+      }
+
+      // Load voice activation settings
+      this.voiceActivation = savedSettings.voiceActivation || 'ptt';
+      this.vadSensitivity = savedSettings.vadSensitivity ?? 50;
+      console.log('[VoiceService] Voice activation:', this.voiceActivation, 'VAD sensitivity:', this.vadSensitivity);
+
+      // Start speaking detection (for VAD mode and speaking indicators)
       this.detectSpeaking();
 
       // Listen for WebRTC signals
@@ -97,11 +151,63 @@ export class VoiceService {
       // Listen for player speaking updates (for ducking)
       this.setupDuckingHandlers();
 
+      // In PTT mode, start muted - user must press Space to talk
+      if (this.voiceActivation === 'ptt') {
+        this.mute();
+        console.log('[VoiceService] PTT mode - starting muted, press Space to talk');
+      }
+
       this._isInitialized.set(true);
       console.log('[VoiceService] Initialized successfully');
     } catch (error) {
       console.error('[VoiceService] Failed to initialize:', error);
       throw error;
+    }
+  }
+
+  private loadAudioSettings(): {
+    inputDevice?: string;
+    outputDevice?: string;
+    inputVolume?: number;
+    noiseSuppression?: boolean;
+    echoCancellation?: boolean;
+    voiceActivation?: 'ptt' | 'vad';
+    vadSensitivity?: number;
+  } {
+    try {
+      const saved = localStorage.getItem('clutch-audio-settings');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (error) {
+      console.error('[VoiceService] Failed to load audio settings:', error);
+    }
+    return {};
+  }
+
+  // Voice activation settings
+  private voiceActivation: 'ptt' | 'vad' = 'ptt';
+  private vadSensitivity = 50;
+
+  // Reload audio settings (called when user changes settings)
+  reloadAudioSettings(): void {
+    const settings = this.loadAudioSettings();
+    const oldVoiceActivation = this.voiceActivation;
+    
+    this.voiceActivation = settings.voiceActivation || 'ptt';
+    this.vadSensitivity = settings.vadSensitivity ?? 50;
+    
+    console.log('[VoiceService] Reloaded settings - Voice activation:', this.voiceActivation, 'VAD sensitivity:', this.vadSensitivity);
+    
+    // If switched to PTT, mute; if switched to VAD, unmute
+    if (this.voiceActivation === 'ptt' && oldVoiceActivation === 'vad') {
+      this.mute();
+      console.log('[VoiceService] Switched to PTT - muting');
+    } else if (this.voiceActivation === 'vad' && oldVoiceActivation === 'ptt') {
+      if (this.canCurrentPlayerSpeak()) {
+        this.unmute();
+        console.log('[VoiceService] Switched to VAD - unmuting');
+      }
     }
   }
 
@@ -141,13 +247,21 @@ export class VoiceService {
   }
 
   createPeerConnection(peerId: string, initiator: boolean): void {
-    if (this.peers.has(peerId) || !this.localStream) return;
+    if (this.peers.has(peerId)) {
+      console.log(`[VoiceService] Already have peer connection to ${peerId}, skipping`);
+      return;
+    }
+    
+    if (!this.processedStream) {
+      console.error(`[VoiceService] Cannot create peer connection - no processed stream yet!`);
+      return;
+    }
 
-    console.log(`[VoiceService] Creating peer connection to ${peerId}, initiator: ${initiator}`);
+    console.log(`[VoiceService] Creating peer connection to ${peerId}, initiator: ${initiator}, processedStream tracks: ${this.processedStream.getTracks().length}`);
 
     const peer = new SimplePeer({
       initiator,
-      stream: this.localStream,
+      stream: this.processedStream, // Use AI-processed stream with RNNoise
       trickle: true,
       config: {
         iceServers: [
@@ -225,6 +339,8 @@ export class VoiceService {
   }
 
   private playRemoteStream(peerId: string, stream: MediaStream): void {
+    console.log(`[VoiceService] Playing remote stream from ${peerId}, tracks: ${stream.getTracks().length}, audio tracks: ${stream.getAudioTracks().length}`);
+    
     // Create audio element for this peer
     let audio = document.getElementById(`audio-${peerId}`) as HTMLAudioElement;
     if (!audio) {
@@ -232,29 +348,23 @@ export class VoiceService {
       audio.id = `audio-${peerId}`;
       audio.autoplay = true;
       document.body.appendChild(audio);
+      console.log(`[VoiceService] Created audio element for ${peerId}`);
     }
     audio.srcObject = stream;
+    
+    // Force play (some browsers need this)
+    audio.play().then(() => {
+      console.log(`[VoiceService] Audio playing for ${peerId}`);
+    }).catch(err => {
+      console.error(`[VoiceService] Failed to play audio for ${peerId}:`, err);
+    });
 
-    // Create gain node for this peer (for ducking control)
-    if (this.audioContext) {
-      const conn = this.peers.get(peerId);
-      if (conn) {
-        try {
-          const source = this.audioContext.createMediaStreamSource(stream);
-          const gainNode = this.audioContext.createGain();
-          gainNode.gain.value = 1.0;
-          
-          source.connect(gainNode);
-          gainNode.connect(this.audioContext.destination);
-          
-          conn.audioSource = source;
-          conn.gainNode = gainNode;
-          
-          console.log(`[VoiceService] Created gain node for peer ${peerId}`);
-        } catch (err) {
-          console.error(`[VoiceService] Failed to create gain node for peer ${peerId}:`, err);
-        }
-      }
+    // Store reference for volume control (we use audio.volume instead of gain node for simplicity)
+    const conn = this.peers.get(peerId);
+    if (conn) {
+      // We'll use audio.volume for muting/ducking instead of Web Audio API
+      // This is simpler and more reliable
+      console.log(`[VoiceService] Audio element ready for peer ${peerId}`);
     }
   }
 
@@ -287,7 +397,6 @@ export class VoiceService {
     if (!this.analyser) return;
 
     const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-    const threshold = 30; // Adjust sensitivity
 
     const check = () => {
       if (!this.analyser) return;
@@ -295,6 +404,10 @@ export class VoiceService {
       this.analyser.getByteFrequencyData(dataArray);
       const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
 
+      // Use VAD sensitivity to calculate threshold (0-100 maps to 10-60 threshold)
+      // Higher sensitivity = lower threshold = easier to detect speech
+      const threshold = 60 - (this.vadSensitivity * 0.5);
+      
       const isSpeaking = average > threshold && !this._isMuted();
 
       if (isSpeaking !== this._isTalking()) {
@@ -404,21 +517,13 @@ export class VoiceService {
 
   // Apply ducking to all peer audio
   private applyDuckingToAllPeers(enabled: boolean): void {
-    const targetGain = enabled ? this.duckingState.duckingLevel : 1.0;
+    const targetVolume = enabled ? this.duckingState.duckingLevel : 1.0;
     
+    // Use audio element volume for ducking (simpler and more reliable)
     this.peers.forEach((conn) => {
-      if (conn.gainNode && this.audioContext) {
-        // Smooth transition over 100ms
-        conn.gainNode.gain.linearRampToValueAtTime(
-          targetGain,
-          this.audioContext.currentTime + 0.1
-        );
-      } else {
-        // Fallback to HTML audio element volume
-        const audio = document.getElementById(`audio-${conn.peerId}`) as HTMLAudioElement;
-        if (audio) {
-          audio.volume = targetGain;
-        }
+      const audio = document.getElementById(`audio-${conn.peerId}`) as HTMLAudioElement;
+      if (audio) {
+        audio.volume = targetVolume;
       }
     });
   }
@@ -446,17 +551,32 @@ export class VoiceService {
 
   // Public controls
   startTalking(): void {
-    if (!this.teamService.canSpeak()) return;
+    if (!this.canCurrentPlayerSpeak()) {
+      console.log('[VoiceService] Cannot start talking - not allowed in current mode');
+      return;
+    }
     this.unmute();
   }
 
   stopTalking(): void {
-    // For push-to-talk
-    this.mute();
+    // For push-to-talk mode: mute when key is released
+    // For voice activity mode: don't mute (user controls with M key)
+    if (this.voiceActivation === 'ptt') {
+      this.mute();
+    }
+  }
+
+  // Get current voice activation mode
+  getVoiceActivation(): 'ptt' | 'vad' {
+    return this.voiceActivation;
   }
 
   toggleMute(): void {
     if (this._isMuted()) {
+      if (!this.canCurrentPlayerSpeak()) {
+        console.log('[VoiceService] Cannot unmute - not allowed in current mode');
+        return;
+      }
       this.unmute();
     } else {
       this.mute();
@@ -473,7 +593,10 @@ export class VoiceService {
   }
 
   unmute(): void {
-    if (!this.teamService.canSpeak()) return;
+    if (!this.canCurrentPlayerSpeak()) {
+      console.log('[VoiceService] Cannot unmute - not allowed in current mode');
+      return;
+    }
 
     if (this.localStream) {
       this.localStream.getAudioTracks().forEach(track => {
@@ -487,34 +610,13 @@ export class VoiceService {
   mutePlayer(playerId: string, muted: boolean): void {
     console.log(`[VoiceService] Trying to mute player ${playerId}, available peers:`, Array.from(this.peers.keys()));
     
-    const conn = this.peers.get(playerId);
-    if (conn) {
-      // Use gain node if available, otherwise use audio element
-      if (conn.gainNode && this.audioContext) {
-        const targetGain = muted ? 0.0 : 1.0;
-        conn.gainNode.gain.linearRampToValueAtTime(
-          targetGain,
-          this.audioContext.currentTime + 0.05
-        );
-        console.log(`[VoiceService] ${muted ? 'Muted' : 'Unmuted'} player ${playerId} via gain node`);
-      } else {
-        const audio = document.getElementById(`audio-${playerId}`) as HTMLAudioElement;
-        if (audio) {
-          audio.muted = muted;
-          console.log(`[VoiceService] ${muted ? 'Muted' : 'Unmuted'} player ${playerId} via audio element`);
-        } else {
-          console.log(`[VoiceService] No audio element found for player ${playerId}`);
-        }
-      }
+    // Always use audio element for muting (simpler and more reliable)
+    const audio = document.getElementById(`audio-${playerId}`) as HTMLAudioElement;
+    if (audio) {
+      audio.muted = muted;
+      console.log(`[VoiceService] ${muted ? 'Muted' : 'Unmuted'} player ${playerId} via audio element`);
     } else {
-      // Try to find by audio element directly (fallback)
-      const audio = document.getElementById(`audio-${playerId}`) as HTMLAudioElement;
-      if (audio) {
-        audio.muted = muted;
-        console.log(`[VoiceService] ${muted ? 'Muted' : 'Unmuted'} player ${playerId} via fallback audio element`);
-      } else {
-        console.log(`[VoiceService] No peer connection found for player ${playerId}`);
-      }
+      console.log(`[VoiceService] No audio element found for player ${playerId}`);
     }
   }
 
@@ -533,6 +635,10 @@ export class VoiceService {
     // Stop local stream
     this.localStream?.getTracks().forEach(track => track.stop());
     this.localStream = null;
+    this.processedStream = null;
+
+    // Destroy AI noise suppressor
+    this.noiseSuppressor.destroy();
 
     // Close all peer connections
     this.peers.forEach((conn) => {
