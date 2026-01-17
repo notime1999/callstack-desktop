@@ -1,6 +1,6 @@
 {
 	"name": "@tactical-voice/desktop",
-	"version": "0.1.7",
+	"version": "0.1.12",
 	"private": true,
 	"main": "electron/main.js",
 	"author": "Tactical Voice Team",
@@ -55,6 +55,66 @@
 			{
 				"from": "node_modules/lodash.isequal",
 				"to": "node_modules/lodash.isequal"
+			},
+			{
+				"from": "node_modules/lodash.escaperegexp",
+				"to": "node_modules/lodash.escaperegexp"
+			},
+			{
+				"from": "node_modules/fs-extra",
+				"to": "node_modules/fs-extra"
+			},
+			{
+				"from": "node_modules/js-yaml",
+				"to": "node_modules/js-yaml"
+			},
+			{
+				"from": "node_modules/tiny-typed-emitter",
+				"to": "node_modules/tiny-typed-emitter"
+			},
+			{
+				"from": "node_modules/graceful-fs",
+				"to": "node_modules/graceful-fs"
+			},
+			{
+				"from": "node_modules/jsonfile",
+				"to": "node_modules/jsonfile"
+			},
+			{
+				"from": "node_modules/universalify",
+				"to": "node_modules/universalify"
+			},
+			{
+				"from": "node_modules/argparse",
+				"to": "node_modules/argparse"
+			},
+			{
+				"from": "node_modules/debug",
+				"to": "node_modules/debug"
+			},
+			{
+				"from": "node_modules/ms",
+				"to": "node_modules/ms"
+			},
+			{
+				"from": "node_modules/sax",
+				"to": "node_modules/sax"
+			},
+			{
+				"from": "node_modules/lru-cache",
+				"to": "node_modules/lru-cache"
+			},
+			{
+				"from": "node_modules/yallist",
+				"to": "node_modules/yallist"
+			},
+			{
+				"from": "node_modules/esprima",
+				"to": "node_modules/esprima"
+			},
+			{
+				"from": "node_modules/sprintf-js",
+				"to": "node_modules/sprintf-js"
 			}
 		],
 		"asar": true,

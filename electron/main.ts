@@ -24,11 +24,17 @@ function initAutoUpdater() {
   try {
     // Try multiple paths for electron-updater
     let updaterModule;
+    
+    // Get the resources path (where extraResources are copied)
+    const resourcesPath = process.resourcesPath || path.dirname(app.getAppPath());
+    log(`[AutoUpdater] Resources path: ${resourcesPath}`);
+    
     const possiblePaths = [
       'electron-updater',
-      path.join(process.resourcesPath, 'node_modules', 'electron-updater'),
+      path.join(resourcesPath, 'node_modules', 'electron-updater'),
+      path.join(resourcesPath, 'node_modules', 'electron-updater', 'out', 'main.js'),
       path.join(__dirname, '..', 'node_modules', 'electron-updater'),
-      path.join(app.getAppPath(), 'node_modules', 'electron-updater')
+      path.join(app.getAppPath(), '..', 'node_modules', 'electron-updater')
     ];
     
     for (const modulePath of possiblePaths) {
@@ -36,8 +42,8 @@ function initAutoUpdater() {
         updaterModule = require(modulePath);
         log(`[AutoUpdater] Module loaded from: ${modulePath}`);
         break;
-      } catch (e) {
-        log(`[AutoUpdater] Not found at: ${modulePath}`);
+      } catch (e: any) {
+        log(`[AutoUpdater] Not found at: ${modulePath} - ${e.message}`);
       }
     }
     

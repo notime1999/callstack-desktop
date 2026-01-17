@@ -176,4 +176,39 @@ release/
 
 .angular/
 
+# Environment files
 .env
+.env.local
+.env.development
+.env.production
+.env*.local
+
+# Secrets and tokens
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+gh_token.txt
+GH_TOKEN
+
+# IDE and editor
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build outputs
+dist/
+*.exe
+*.dmg
+*.AppImage
+*.snap
+
+# Electron builder cache
+.electron-builder-cache/
