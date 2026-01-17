@@ -4,7 +4,7 @@ export type GameType = 'cs2' | 'valorant' | 'lol';
 
 export type PlayerRole = 'igl' | 'caller' | 'player' | 'coach';
 
-export type VoiceMode = 'default' | 'clutch' | 'prep';
+export type VoiceMode = 'lobby' | 'default' | 'clutch' | 'prep';
 
 export type PlayerStatus = 'ready' | 'no-mic' | 'listen-only' | 'in-match';
 
@@ -50,6 +50,12 @@ export interface VoiceRules {
 }
 
 export const VOICE_RULES: Record<VoiceMode, VoiceRules> = {
+  lobby: {
+    mode: 'lobby',
+    canSpeak: { igl: true, caller: true, player: true, coach: true },
+    hasPriority: [],
+    duckingEnabled: false
+  },
   default: {
     mode: 'default',
     canSpeak: { igl: true, caller: true, player: true, coach: false },

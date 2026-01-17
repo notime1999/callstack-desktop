@@ -12,7 +12,7 @@ import { CommonModule } from '@angular/common';
         @if (!minimal) {
           <div class="app-info">
             <img src="assets/icon.svg" alt="Logo" class="app-logo">
-            <span class="app-name">Tactical Voice</span>
+            <span class="app-name">Clutch</span>
           </div>
         }
         

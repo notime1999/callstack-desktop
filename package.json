@@ -1,10 +1,10 @@
 {
-	"name": "@tactical-voice/desktop",
-	"version": "0.1.16",
+	"name": "@clutch/desktop",
+	"version": "0.1.24",
 	"private": true,
 	"main": "electron/main.js",
-	"author": "Tactical Voice Team",
-	"description": "Team communication app for competitive gaming",
+	"author": "Clutch Team",
+	"description": "When only the right voice matters.",
 	"scripts": {
 		"start": "npm run electron:dev",
 		"build:angular": "ng build --configuration development",
@@ -25,8 +25,8 @@
 		"test:watch": "jest --watch --config jest.config.js"
 	},
 	"build": {
-		"appId": "com.tacticalvoice.app",
-		"productName": "Tactical Voice",
+		"appId": "com.clutch.app",
+		"productName": "Clutch",
 		"directories": {
 			"output": "release"
 		},
@@ -37,83 +37,83 @@
 		],
 		"extraResources": [
 			{
-				"from": "node_modules/electron-updater",
+				"from": "../../node_modules/electron-updater",
 				"to": "node_modules/electron-updater"
 			},
 			{
-				"from": "node_modules/builder-util-runtime",
+				"from": "../../node_modules/builder-util-runtime",
 				"to": "node_modules/builder-util-runtime"
 			},
 			{
-				"from": "node_modules/lazy-val",
+				"from": "../../node_modules/lazy-val",
 				"to": "node_modules/lazy-val"
 			},
 			{
-				"from": "node_modules/semver",
+				"from": "../../node_modules/semver",
 				"to": "node_modules/semver"
 			},
 			{
-				"from": "node_modules/lodash.isequal",
+				"from": "../../node_modules/lodash.isequal",
 				"to": "node_modules/lodash.isequal"
 			},
 			{
-				"from": "node_modules/lodash.escaperegexp",
+				"from": "../../node_modules/lodash.escaperegexp",
 				"to": "node_modules/lodash.escaperegexp"
 			},
 			{
-				"from": "node_modules/fs-extra",
+				"from": "../../node_modules/fs-extra",
 				"to": "node_modules/fs-extra"
 			},
 			{
-				"from": "node_modules/js-yaml",
+				"from": "../../node_modules/js-yaml",
 				"to": "node_modules/js-yaml"
 			},
 			{
-				"from": "node_modules/tiny-typed-emitter",
+				"from": "../../node_modules/tiny-typed-emitter",
 				"to": "node_modules/tiny-typed-emitter"
 			},
 			{
-				"from": "node_modules/graceful-fs",
+				"from": "../../node_modules/graceful-fs",
 				"to": "node_modules/graceful-fs"
 			},
 			{
-				"from": "node_modules/jsonfile",
+				"from": "../../node_modules/jsonfile",
 				"to": "node_modules/jsonfile"
 			},
 			{
-				"from": "node_modules/universalify",
+				"from": "../../node_modules/universalify",
 				"to": "node_modules/universalify"
 			},
 			{
-				"from": "node_modules/argparse",
+				"from": "../../node_modules/argparse",
 				"to": "node_modules/argparse"
 			},
 			{
-				"from": "node_modules/debug",
+				"from": "../../node_modules/debug",
 				"to": "node_modules/debug"
 			},
 			{
-				"from": "node_modules/ms",
+				"from": "../../node_modules/ms",
 				"to": "node_modules/ms"
 			},
 			{
-				"from": "node_modules/sax",
+				"from": "../../node_modules/sax",
 				"to": "node_modules/sax"
 			},
 			{
-				"from": "node_modules/lru-cache",
+				"from": "../../node_modules/lru-cache",
 				"to": "node_modules/lru-cache"
 			},
 			{
-				"from": "node_modules/yallist",
+				"from": "../../node_modules/yallist",
 				"to": "node_modules/yallist"
 			},
 			{
-				"from": "node_modules/esprima",
+				"from": "../../node_modules/esprima",
 				"to": "node_modules/esprima"
 			},
 			{
-				"from": "node_modules/sprintf-js",
+				"from": "../../node_modules/sprintf-js",
 				"to": "node_modules/sprintf-js"
 			}
 		],
@@ -136,7 +136,7 @@
 		"nsis": {
 			"oneClick": false,
 			"allowToChangeInstallationDirectory": true,
-			"artifactName": "TacticalVoice-Setup-${version}.exe"
+			"artifactName": "Clutch-Setup-${version}.exe"
 		},
 		"mac": {
 			"target": [

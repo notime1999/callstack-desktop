@@ -194,6 +194,7 @@ export class OverlayComponent implements OnInit, OnDestroy {
 
   getModeIcon(mode: VoiceMode): string {
     const icons: Record<VoiceMode, string> = {
+      lobby: '🏠',
       default: '🟢',
       clutch: '🔴',
       prep: '🧠'

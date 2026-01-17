@@ -189,6 +189,22 @@ ipcMain.handle('window-is-maximized', () => {
   return mainWindow?.isMaximized() || false;
 });
 
+ipcMain.handle('check-for-updates', async () => {
+  if (!autoUpdater) {
+    return { available: false, error: 'AutoUpdater not available' };
+  }
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return { 
+      available: result?.updateInfo?.version !== app.getVersion(),
+      version: result?.updateInfo?.version,
+      currentVersion: app.getVersion()
+    };
+  } catch (err: any) {
+    return { available: false, error: err.message };
+  }
+});
+
 // App lifecycle
 app.whenReady().then(() => {
   log('App ready');

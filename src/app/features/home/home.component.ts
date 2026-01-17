@@ -14,8 +14,8 @@ import { Team } from '../../shared/types';
     <div class="home-container">
       <div class="logo-section">
         <img src="assets/icon.svg" alt="Logo" class="logo">
-        <h1>Tactical Voice</h1>
-        <p class="tagline">Team communication for competitive gaming</p>
+        <h1>Clutch</h1>
+        <p class="tagline">When only the right voice matters.</p>
       </div>
 
       <div class="actions-section">
@@ -88,6 +88,16 @@ import { Team } from '../../shared/types';
           <span class="dot"></span>
           {{ socketService.isConnected() ? 'Connected to server' : 'Connecting...' }}
         </div>
+
+        <!-- Check for Updates -->
+        <button class="btn-update" (click)="checkForUpdates()" [disabled]="isCheckingUpdates()">
+          {{ isCheckingUpdates() ? '🔄 Checking...' : '🔄 Check for Updates' }}
+        </button>
+        @if (updateMessage()) {
+          <div class="update-message" [class.has-update]="hasUpdate()">
+            {{ updateMessage() }}
+          </div>
+        }
       </div>
     </div>
   `,
@@ -255,6 +265,41 @@ import { Team } from '../../shared/types';
     .status.connected .dot {
       background: #22c55e;
     }
+
+    .btn-update {
+      padding: 10px 16px;
+      background: transparent;
+      color: #888;
+      border: 1px solid #444;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-update:hover:not(:disabled) {
+      color: #fff;
+      border-color: #666;
+    }
+
+    .btn-update:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .update-message {
+      padding: 10px;
+      background: #252542;
+      border-radius: 6px;
+      font-size: 12px;
+      text-align: center;
+      color: #888;
+    }
+
+    .update-message.has-update {
+      background: #22c55e20;
+      color: #22c55e;
+    }
   `]
 })
 export class HomeComponent {
@@ -267,6 +312,33 @@ export class HomeComponent {
   teamName = '';
   teamCode = '';
   error = signal('');
+  isCheckingUpdates = signal(false);
+  updateMessage = signal('');
+  hasUpdate = signal(false);
+
+  async checkForUpdates(): Promise<void> {
+    this.isCheckingUpdates.set(true);
+    this.updateMessage.set('');
+    
+    try {
+      const result = await window.electronAPI?.checkForUpdates();
+      if (result?.error) {
+        this.updateMessage.set(`Error: ${result.error}`);
+        this.hasUpdate.set(false);
+      } else if (result?.available) {
+        this.updateMessage.set(`Update available: v${result.version} (current: v${result.currentVersion})`);
+        this.hasUpdate.set(true);
+      } else {
+        this.updateMessage.set(`You're on the latest version (v${result?.currentVersion})`);
+        this.hasUpdate.set(false);
+      }
+    } catch (err) {
+      this.updateMessage.set('Failed to check for updates');
+      this.hasUpdate.set(false);
+    }
+    
+    this.isCheckingUpdates.set(false);
+  }
 
   canCreate(): boolean {
     return this.playerName.trim().length >= 2 && this.teamName.trim().length >= 2;
@@ -284,6 +356,11 @@ export class HomeComponent {
     // Listen for team state
     this.socketService.on('team-state', (team: Team) => {
       this.teamService.setTeam(team);
+      // Find current player ID from socket
+      const socketId = (this.socketService as any).socket?.id;
+      if (socketId) {
+        this.teamService.setCurrentPlayer(socketId);
+      }
       this.router.navigate(['/lobby']);
     });
 

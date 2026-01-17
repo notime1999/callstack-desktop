@@ -188,6 +188,22 @@ electron_1.ipcMain.on('window-close', () => {
 electron_1.ipcMain.handle('window-is-maximized', () => {
     return mainWindow?.isMaximized() || false;
 });
+electron_1.ipcMain.handle('check-for-updates', async () => {
+    if (!autoUpdater) {
+        return { available: false, error: 'AutoUpdater not available' };
+    }
+    try {
+        const result = await autoUpdater.checkForUpdates();
+        return {
+            available: result?.updateInfo?.version !== electron_1.app.getVersion(),
+            version: result?.updateInfo?.version,
+            currentVersion: electron_1.app.getVersion()
+        };
+    }
+    catch (err) {
+        return { available: false, error: err.message };
+    }
+});
 // App lifecycle
 electron_1.app.whenReady().then(() => {
     log('App ready');

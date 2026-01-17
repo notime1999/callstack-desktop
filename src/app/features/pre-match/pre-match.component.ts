@@ -85,11 +85,14 @@ import { VoiceMode, VOICE_RULES } from '../../shared/types';
 
       <!-- Actions -->
       <footer class="actions">
-        <button class="btn-secondary" (click)="goBack()">
+        <button class="btn-secondary" (click)="goBack()" [disabled]="isStarting">
           ← Back to Lobby
         </button>
-        <button class="btn-primary btn-large" (click)="startMatch()">
-          🎮 START MATCH NOW
+        <button 
+          class="btn-primary btn-large" 
+          (click)="startMatch()"
+          [disabled]="isStarting">
+          {{ isStarting ? '⏳ Starting...' : '🎮 START MATCH NOW' }}
         </button>
       </footer>
     </div>
@@ -245,11 +248,13 @@ export class PreMatchComponent implements OnInit, OnDestroy {
   enableDucking = true;
   enableRecording = false;
   enableOverlay = false;
+  isStarting = false;
 
   ngOnInit() {
     // Listen for match started event to navigate to match
     this.socketService.on('match-started', (matchState: any) => {
       console.log('[PreMatch] Match started, navigating to match:', matchState);
+      this.isStarting = false;
       this.router.navigate(['/match']);
     });
   }
@@ -271,6 +276,11 @@ export class PreMatchComponent implements OnInit, OnDestroy {
   }
 
   startMatch() {
+    if (this.isStarting) return;
+    this.isStarting = true;
+
+    console.log('[PreMatch] Starting match...');
+
     // Set initial voice mode
     this.teamService.setVoiceMode(this.selectedMode);
 
@@ -279,10 +289,28 @@ export class PreMatchComponent implements OnInit, OnDestroy {
       window.electronAPI?.toggleOverlay(true);
     }
 
-    // Emit socket event - navigation happens via match-started listener
-    this.socketService.startMatch({
-      recording: this.enableRecording,
-      overlay: this.enableOverlay
-    });
+    // If connected to server, emit event
+    if (this.socketService.isConnected()) {
+      this.socketService.startMatch({
+        recording: this.enableRecording,
+        overlay: this.enableOverlay
+      });
+    }
+
+    // Navigate to match immediately
+    this.isStarting = false;
+    
+    // Try router first, fallback to direct navigation
+    try {
+      this.router.navigate(['/match']).then(success => {
+        if (!success) {
+          console.log('[PreMatch] Router navigate failed, using fallback');
+          window.location.hash = '#/match';
+        }
+      });
+    } catch (e) {
+      console.error('[PreMatch] Navigation error:', e);
+      window.location.hash = '#/match';
+    }
   }
 }

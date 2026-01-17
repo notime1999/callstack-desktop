@@ -95,7 +95,7 @@ HomeComponent = __decorate([
       <div class="logo-section">
         <img src="assets/icon.svg" alt="Logo" class="logo">
         <h1>Tactical Voice</h1>
-        <p class="tagline">Team communication for competitive gaming</p>
+        <p class="tagline">When only the right voice matters.</p>
       </div>
 
       <div class="actions-section">

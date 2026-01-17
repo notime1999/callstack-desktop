@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -47,10 +47,34 @@ interface AudioDevice {
           }
         </select>
         
-        <button class="test-btn" (click)="testOutput()">
-          🔊 Test Sound
-        </button>
+        <div class="test-buttons">
+          <button class="test-btn" (click)="testOutput()">
+            🔊 Test Sound
+          </button>
+          <button 
+            class="test-btn" 
+            [class.active]="isLoopbackActive()"
+            (click)="toggleVoiceTest()">
+            {{ isLoopbackActive() ? '🔴 Stop Voice Test' : '🎤 Test Your Voice' }}
+          </button>
+        </div>
       </div>
+
+      <!-- Voice Test Modal -->
+      @if (isLoopbackActive()) {
+        <div class="voice-test-panel">
+          <div class="voice-test-header">
+            <span>🎤 Voice Test Active</span>
+            <span class="voice-test-hint">You should hear yourself speaking</span>
+          </div>
+          <div class="voice-test-meter">
+            <div class="voice-test-bar" [style.width.%]="micLevel()"></div>
+          </div>
+          <button class="stop-test-btn" (click)="toggleVoiceTest()">
+            Stop Test
+          </button>
+        </div>
+      }
 
       <!-- Input Volume -->
       <div class="setting-group">
@@ -172,6 +196,11 @@ interface AudioDevice {
       color: #666;
     }
 
+    .test-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
     .test-btn {
       padding: 8px 16px;
       background: #333;
@@ -181,10 +210,81 @@ interface AudioDevice {
       cursor: pointer;
       font-size: 13px;
       align-self: flex-start;
+      transition: all 0.2s;
     }
 
     .test-btn:hover {
       background: #444;
+    }
+
+    .test-btn.active {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .test-btn.active:hover {
+      background: #dc2626;
+    }
+
+    .voice-test-panel {
+      background: #252542;
+      border: 2px solid #6366f1;
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .voice-test-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .voice-test-header span:first-child {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .voice-test-hint {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .voice-test-meter {
+      height: 12px;
+      background: #1a1a2e;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .voice-test-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #eab308, #ef4444);
+      transition: width 0.05s;
+    }
+
+    .stop-test-btn {
+      padding: 10px 20px;
+      background: #ef4444;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .stop-test-btn:hover {
+      background: #dc2626;
     }
 
     .volume-slider {
@@ -258,7 +358,7 @@ interface AudioDevice {
     }
   `]
 })
-export class AudioSettingsComponent implements OnInit {
+export class AudioSettingsComponent implements OnInit, OnDestroy {
   @Output() settingsChange = new EventEmitter<{
     inputDevice: string;
     outputDevice: string;
@@ -272,6 +372,7 @@ export class AudioSettingsComponent implements OnInit {
   inputDevices = signal<AudioDevice[]>([]);
   outputDevices = signal<AudioDevice[]>([]);
   micLevel = signal(0);
+  isLoopbackActive = signal(false);
 
   selectedInput = '';
   selectedOutput = '';
@@ -284,6 +385,11 @@ export class AudioSettingsComponent implements OnInit {
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private micStream: MediaStream | null = null;
+  
+  // Loopback audio elements
+  private loopbackAudioContext: AudioContext | null = null;
+  private loopbackStream: MediaStream | null = null;
+  private loopbackAudioElement: HTMLAudioElement | null = null;
 
   async ngOnInit(): Promise<void> {
     await this.loadDevices();
@@ -376,12 +482,97 @@ export class AudioSettingsComponent implements OnInit {
   }
 
   testOutput(): void {
-    // Play test sound
-    const audio = new Audio('assets/sounds/test-sound.mp3');
-    if (this.selectedOutput && 'setSinkId' in audio) {
-      (audio as any).setSinkId(this.selectedOutput);
+    // Generate a test beep sound using Web Audio API
+    const ctx = new AudioContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    oscillator.frequency.value = 440; // A4 note
+    oscillator.type = 'sine';
+    gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.5);
+    
+    // Play a second beep after a short pause
+    setTimeout(() => {
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.frequency.value = 554.37; // C#5 note
+      osc2.type = 'sine';
+      gain2.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+      osc2.start(ctx.currentTime);
+      osc2.stop(ctx.currentTime + 0.5);
+      
+      setTimeout(() => ctx.close(), 600);
+    }, 200);
+  }
+
+  async toggleVoiceTest(): Promise<void> {
+    if (this.isLoopbackActive()) {
+      this.stopLoopback();
+    } else {
+      await this.startLoopback();
     }
-    audio.play();
+  }
+
+  private async startLoopback(): Promise<void> {
+    try {
+      // Get microphone stream
+      this.loopbackStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: this.selectedInput || undefined,
+          echoCancellation: false, // Disable for loopback
+          noiseSuppression: this.noiseSuppression,
+          autoGainControl: true
+        }
+      });
+
+      // Create audio element for playback
+      this.loopbackAudioElement = new Audio();
+      this.loopbackAudioElement.srcObject = this.loopbackStream;
+      
+      // Set output device if supported
+      if (this.selectedOutput && 'setSinkId' in this.loopbackAudioElement) {
+        await (this.loopbackAudioElement as any).setSinkId(this.selectedOutput);
+      }
+      
+      this.loopbackAudioElement.play();
+      this.isLoopbackActive.set(true);
+      
+      console.log('[AudioSettings] Voice loopback started');
+    } catch (error) {
+      console.error('[AudioSettings] Failed to start loopback:', error);
+      this.stopLoopback();
+    }
+  }
+
+  private stopLoopback(): void {
+    if (this.loopbackAudioElement) {
+      this.loopbackAudioElement.pause();
+      this.loopbackAudioElement.srcObject = null;
+      this.loopbackAudioElement = null;
+    }
+    
+    if (this.loopbackStream) {
+      this.loopbackStream.getTracks().forEach(track => track.stop());
+      this.loopbackStream = null;
+    }
+    
+    if (this.loopbackAudioContext) {
+      this.loopbackAudioContext.close();
+      this.loopbackAudioContext = null;
+    }
+    
+    this.isLoopbackActive.set(false);
+    console.log('[AudioSettings] Voice loopback stopped');
   }
 
   private stopMicTest(): void {
@@ -406,5 +597,6 @@ export class AudioSettingsComponent implements OnInit {
 
   ngOnDestroy(): void {
     this.stopMicTest();
+    this.stopLoopback();
   }
 }

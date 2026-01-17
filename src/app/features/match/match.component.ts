@@ -12,6 +12,11 @@ import { VoiceMode, Player } from '../../shared/types';
   imports: [CommonModule],
   template: `
     <div class="match-container" [class.clutch]="voiceMode() === 'clutch'">
+      <!-- Back Button -->
+      <button class="btn-back" (click)="goBack()">
+        ← Back to Lobby
+      </button>
+
       <!-- Mode Indicator -->
       <div class="mode-indicator">
         <span class="mode-label">MODE:</span>
@@ -57,11 +62,19 @@ import { VoiceMode, Player } from '../../shared/types';
         {{ canSpeak() ? '🎤 You can speak' : '🔇 Muted by mode' }}
       </div>
 
-      <!-- End Match Button (IGL only) -->
+      <!-- IGL Controls -->
       @if (isIGL()) {
-        <button class="btn-end-match" (click)="endMatch()">
-          🛑 End Match
-        </button>
+        <div class="igl-controls">
+          <button 
+            class="btn-mute-all" 
+            [class.active]="allPlayersMuted()"
+            (click)="toggleMuteAll()">
+            {{ allPlayersMuted() ? '🔊 Unmute All Players' : '🔇 Mute All Players' }}
+          </button>
+          <button class="btn-end-match" (click)="endMatch()">
+            🛑 End Match
+          </button>
+        </div>
       }
     </div>
 
@@ -167,7 +180,6 @@ import { VoiceMode, Player } from '../../shared/types';
     .speak-status.muted { background: #ef444420; color: #ef4444; }
 
     .btn-end-match {
-      margin-top: 16px;
       padding: 12px 24px;
       background: #dc2626;
       color: white;
@@ -179,6 +191,39 @@ import { VoiceMode, Player } from '../../shared/types';
       transition: background 0.2s;
     }
     .btn-end-match:hover { background: #b91c1c; }
+
+    .btn-back {
+      padding: 8px 16px;
+      background: transparent;
+      color: #888;
+      border: 1px solid #444;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      align-self: flex-start;
+      transition: all 0.2s;
+    }
+    .btn-back:hover { color: #fff; border-color: #666; }
+
+    .igl-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .btn-mute-all {
+      padding: 10px 20px;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-mute-all:hover { background: #444; }
+    .btn-mute-all.active { background: #22c55e; }
 
     .mode-feedback {
       position: fixed;
@@ -211,11 +256,23 @@ export class MatchComponent implements OnInit, OnDestroy {
   canSpeak = this.teamService.canSpeak;
   players = this.teamService.players;
   isIGL = this.teamService.isIGL;
+  allPlayersMuted = this.teamService.allPlayersMuted;
 
   showModeFeedback = false;
 
   getIGL(): Player | undefined {
     return this.players().find((p: Player) => p.role === 'igl');
+  }
+
+  goBack() {
+    // Reset to lobby mode so everyone can speak
+    this.teamService.resetToLobbyMode();
+    this.router.navigate(['/lobby']);
+  }
+
+  toggleMuteAll() {
+    const currentlyMuted = this.allPlayersMuted();
+    this.teamService.muteAllPlayers(!currentlyMuted);
   }
 
   @HostListener('window:keydown', ['$event'])
@@ -272,7 +329,10 @@ export class MatchComponent implements OnInit, OnDestroy {
 
   endMatch() {
     if (this.isIGL()) {
+      // Reset to lobby mode so everyone can speak again
+      this.teamService.resetToLobbyMode();
       this.socketService.endMatch();
+      this.router.navigate(['/lobby']);
     }
   }
 
@@ -282,8 +342,9 @@ export class MatchComponent implements OnInit, OnDestroy {
 
     // Listen for match end (IGL ended the match)
     this.socketService.on('match-ended', () => {
-      console.log('[Match] Match ended, navigating to post-match');
-      this.router.navigate(['/post-match']);
+      console.log('[Match] Match ended, navigating to lobby');
+      this.teamService.resetToLobbyMode();
+      this.router.navigate(['/lobby']);
     });
   }
 

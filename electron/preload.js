@@ -7,6 +7,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     maximize: () => electron_1.ipcRenderer.send('window-maximize'),
     close: () => electron_1.ipcRenderer.send('window-close'),
     isMaximized: () => electron_1.ipcRenderer.invoke('window-is-maximized'),
+    checkForUpdates: () => electron_1.ipcRenderer.invoke('check-for-updates'),
     // Platform info
     platform: process.platform,
     // Event listeners

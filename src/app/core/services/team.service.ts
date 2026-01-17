@@ -6,7 +6,8 @@ export class TeamService {
   // State signals
   private _team = signal<Team | null>(null);
   private _currentPlayerId = signal<string | null>(null);
-  private _voiceMode = signal<VoiceMode>('default');
+  private _voiceMode = signal<VoiceMode>('lobby');
+  private _mutedPlayers = signal<Set<string>>(new Set());
 
   // Computed values
   readonly team = this._team.asReadonly();
@@ -76,6 +77,11 @@ export class TeamService {
     this._voiceMode.set(mode);
   }
 
+  // Allow setting voice mode without IGL check (for entering lobby)
+  resetToLobbyMode() {
+    this._voiceMode.set('lobby');
+  }
+
   setGame(game: GameType) {
     this._team.update(team => team ? { ...team, game } : team);
   }
@@ -87,4 +93,30 @@ export class TeamService {
   markAlive(playerId: string) {
     this.updatePlayer(playerId, { isAlive: true });
   }
+
+  // Mute/unmute all players except IGL and Coach
+  muteAllPlayers(mute: boolean) {
+    if (!this.isIGL()) return;
+    this._team.update(team => {
+      if (!team) return team;
+      return {
+        ...team,
+        players: team.players.map((p: Player) => {
+          // Don't mute IGL or Coach
+          if (p.role === 'igl' || p.role === 'coach') {
+            return p;
+          }
+          return { ...p, isMuted: mute };
+        })
+      };
+    });
+  }
+
+  // Check if all players (except IGL/Coach) are muted
+  readonly allPlayersMuted = computed(() => {
+    const team = this._team();
+    if (!team) return false;
+    const mutables = team.players.filter((p: Player) => p.role !== 'igl' && p.role !== 'coach');
+    return mutables.length > 0 && mutables.every((p: Player) => p.isMuted);
+  });
 }

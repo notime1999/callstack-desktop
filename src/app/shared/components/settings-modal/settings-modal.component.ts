@@ -181,6 +181,22 @@ type SettingsTab = 'audio' | 'hotkeys' | 'overlay' | 'account';
                     Log Out
                   </button>
                 </div>
+
+                <!-- Updates Section -->
+                <div class="updates-section">
+                  <h4>🔄 Updates</h4>
+                  <button 
+                    class="btn-secondary" 
+                    (click)="checkForUpdates()" 
+                    [disabled]="isCheckingUpdates">
+                    {{ isCheckingUpdates ? 'Checking...' : 'Check for Updates' }}
+                  </button>
+                  @if (updateMessage) {
+                    <p class="update-result" [class.has-update]="hasUpdate">
+                      {{ updateMessage }}
+                    </p>
+                  }
+                </div>
               </div>
             }
           }
@@ -535,6 +551,32 @@ type SettingsTab = 'audio' | 'hotkeys' | 'overlay' | 'account';
       cursor: pointer;
     }
 
+    .updates-section {
+      padding: 16px;
+      background: #252542;
+      border-radius: 8px;
+      margin-top: 16px;
+    }
+
+    .updates-section h4 {
+      margin: 0 0 12px;
+      color: #fff;
+    }
+
+    .update-result {
+      margin-top: 12px;
+      padding: 10px;
+      background: #1a1a2e;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #888;
+    }
+
+    .update-result.has-update {
+      background: #22c55e20;
+      color: #22c55e;
+    }
+
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.6; }
@@ -590,6 +632,11 @@ export class SettingsModalComponent {
   username = 'Player';
   currentPlan: 'free' | 'pro' = 'free';
 
+  // Updates
+  isCheckingUpdates = false;
+  updateMessage = '';
+  hasUpdate = false;
+
   onBackdropClick(event: MouseEvent) {
     if ((event.target as HTMLElement).classList.contains('modal-backdrop')) {
       this.close.emit();
@@ -631,6 +678,30 @@ export class SettingsModalComponent {
 
   logout() {
     console.log('Logout');
+  }
+
+  async checkForUpdates(): Promise<void> {
+    this.isCheckingUpdates = true;
+    this.updateMessage = '';
+    
+    try {
+      const result = await window.electronAPI?.checkForUpdates();
+      if (result?.error) {
+        this.updateMessage = `Error: ${result.error}`;
+        this.hasUpdate = false;
+      } else if (result?.available) {
+        this.updateMessage = `Update available: v${result.version} (current: v${result.currentVersion})`;
+        this.hasUpdate = true;
+      } else {
+        this.updateMessage = `You're on the latest version (v${result?.currentVersion})`;
+        this.hasUpdate = false;
+      }
+    } catch (err) {
+      this.updateMessage = 'Failed to check for updates';
+      this.hasUpdate = false;
+    }
+    
+    this.isCheckingUpdates = false;
   }
 
   saveSettings() {

@@ -16,6 +16,7 @@ declare global {
       minimize: () => Promise<void>;
       maximize: () => Promise<void>;
       close: () => Promise<void>;
+      checkForUpdates: () => Promise<{ available: boolean; version?: string; currentVersion?: string; error?: string }>;
       toggleOverlay: (show: boolean) => Promise<void>;
       updateOverlay: (data: unknown) => Promise<void>;
       onHotkey: (callback: (action: HotkeyAction) => void) => void;

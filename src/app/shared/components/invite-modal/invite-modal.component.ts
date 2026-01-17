@@ -305,7 +305,7 @@ export class InviteModalComponent implements OnInit {
   }
 
   shareVia(platform: string) {
-    const message = `Join my team on Tactical Voice: ${this.inviteLink}`;
+    const message = `Join my team on Clutch: ${this.inviteLink}`;
 
     switch (platform) {
       case 'discord':

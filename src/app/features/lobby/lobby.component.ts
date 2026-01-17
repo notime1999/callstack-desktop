@@ -70,20 +70,6 @@ import { GameType, PlayerRole, Team } from '../../shared/types';
         </button>
       </section>
 
-      <!-- Role Legend -->
-      @if (isIGL()) {
-        <section class="role-management">
-          <h3>DRAG TO ASSIGN ROLE</h3>
-          <div class="role-slots">
-            @for (role of roles; track role) {
-              <div class="role-slot" [attr.data-role]="role">
-                {{ getRoleLabel(role) }}
-              </div>
-            }
-          </div>
-        </section>
-      }
-
       <!-- Actions -->
       <footer class="lobby-actions">
         @if (isIGL()) {

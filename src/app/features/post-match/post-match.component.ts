@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -265,26 +265,29 @@ interface TimelineEvent {
     .btn-secondary:hover { color: #fff; border-color: #666; }
   `]
 })
-export class PostMatchComponent {
+export class PostMatchComponent implements OnInit {
   private router = inject(Router);
 
-  matchDuration = 42 * 60 + 18;
-  hasRecording = true;
+  // These will be populated from the actual match data
+  matchDuration = 0;
+  matchStartTime: Date | null = null;
+  hasRecording = false;
   isPlaying = false;
   currentTime = 0;
   playbackProgress = 0;
   notes = '';
 
-  timelineEvents: TimelineEvent[] = [
-    { timestamp: 180, type: 'mode-change', label: 'Clutch Mode', icon: '🔴' },
-    { timestamp: 420, type: 'marker', label: 'Teamfight', icon: '⚔️' },
-    { timestamp: 890, type: 'mode-change', label: 'Prep Mode', icon: '🧠' },
-    { timestamp: 1200, type: 'marker', label: 'Timeout', icon: '⏸️' },
-    { timestamp: 1800, type: 'mode-change', label: 'Clutch Mode', icon: '🔴' },
-    { timestamp: 2100, type: 'marker', label: '1v3 Clutch', icon: '🏆' }
-  ];
+  timelineEvents: TimelineEvent[] = [];
+
+  ngOnInit() {
+    // Calculate actual match duration
+    // For now, this is a placeholder - would need to get from match state
+    this.matchDuration = 0;
+    this.hasRecording = false;
+  }
 
   formatDuration(seconds: number): string {
+    if (seconds === 0) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -295,6 +298,7 @@ export class PostMatchComponent {
   }
 
   getMarkerPosition(timestamp: number): number {
+    if (this.matchDuration === 0) return 0;
     return (timestamp / this.matchDuration) * 100;
   }
 
@@ -305,14 +309,15 @@ export class PostMatchComponent {
 
   togglePlayback(): void {
     this.isPlaying = !this.isPlaying;
+    alert('Voice recording playback is not yet implemented');
   }
 
   exportAudio(): void {
-    console.log('Export audio');
+    alert('Export audio is not yet implemented.\nThis feature will allow you to save the voice recording as an audio file.');
   }
 
   shareReview(): void {
-    console.log('Share review');
+    alert('Share review is not yet implemented.\nThis feature will allow you to share the match review with your team.');
   }
 
   backToLobby(): void {
