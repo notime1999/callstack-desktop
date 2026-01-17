@@ -1,7 +1,9 @@
 import { Component, inject, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { TeamService } from '../../core/services/team.service';
 import { VoiceService } from '../../core/services/voice.service';
+import { SocketService } from '../../core/services/socket.service';
 import { VoiceMode, Player } from '../../shared/types';
 
 @Component({
@@ -54,6 +56,13 @@ import { VoiceMode, Player } from '../../shared/types';
       <div class="speak-status" [class.can-speak]="canSpeak()" [class.muted]="!canSpeak()">
         {{ canSpeak() ? '🎤 You can speak' : '🔇 Muted by mode' }}
       </div>
+
+      <!-- End Match Button (IGL only) -->
+      @if (isIGL()) {
+        <button class="btn-end-match" (click)="endMatch()">
+          🛑 End Match
+        </button>
+      }
     </div>
 
     <!-- Mode Change Feedback -->
@@ -157,6 +166,20 @@ import { VoiceMode, Player } from '../../shared/types';
     .speak-status.can-speak { background: #22c55e20; color: #22c55e; }
     .speak-status.muted { background: #ef444420; color: #ef4444; }
 
+    .btn-end-match {
+      margin-top: 16px;
+      padding: 12px 24px;
+      background: #dc2626;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-end-match:hover { background: #b91c1c; }
+
     .mode-feedback {
       position: fixed;
       top: 50%;
@@ -181,6 +204,8 @@ import { VoiceMode, Player } from '../../shared/types';
 export class MatchComponent implements OnInit, OnDestroy {
   private teamService = inject(TeamService);
   private voiceService = inject(VoiceService);
+  private socketService = inject(SocketService);
+  private router = inject(Router);
 
   voiceMode = this.teamService.voiceMode;
   canSpeak = this.teamService.canSpeak;
@@ -245,12 +270,25 @@ export class MatchComponent implements OnInit, OnDestroy {
     setTimeout(() => this.showModeFeedback = false, 1500);
   }
 
+  endMatch() {
+    if (this.isIGL()) {
+      this.socketService.endMatch();
+    }
+  }
+
   ngOnInit() {
     // Initialize voice engine
     this.voiceService.initialize();
+
+    // Listen for match end (IGL ended the match)
+    this.socketService.on('match-ended', () => {
+      console.log('[Match] Match ended, navigating to post-match');
+      this.router.navigate(['/post-match']);
+    });
   }
 
   ngOnDestroy() {
     this.voiceService.destroy();
+    this.socketService.off('match-ended');
   }
 }

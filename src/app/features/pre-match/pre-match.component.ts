@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -230,7 +230,7 @@ import { VoiceMode, VOICE_RULES } from '../../shared/types';
     .btn-secondary:hover { color: #fff; border-color: #666; }
   `]
 })
-export class PreMatchComponent {
+export class PreMatchComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private teamService = inject(TeamService);
   private socketService = inject(SocketService);
@@ -246,6 +246,18 @@ export class PreMatchComponent {
   enableRecording = false;
   enableOverlay = false;
 
+  ngOnInit() {
+    // Listen for match started event to navigate to match
+    this.socketService.on('match-started', (matchState: any) => {
+      console.log('[PreMatch] Match started, navigating to match:', matchState);
+      this.router.navigate(['/match']);
+    });
+  }
+
+  ngOnDestroy() {
+    this.socketService.off('match-started');
+  }
+
   getCurrentRules() {
     const rules = VOICE_RULES[this.selectedMode];
     return Object.entries(rules.canSpeak).map(([role, canSpeak]) => ({
@@ -259,11 +271,6 @@ export class PreMatchComponent {
   }
 
   startMatch() {
-    this.socketService.startMatch({
-      recording: this.enableRecording,
-      overlay: this.enableOverlay
-    });
-
     // Set initial voice mode
     this.teamService.setVoiceMode(this.selectedMode);
 
@@ -272,6 +279,10 @@ export class PreMatchComponent {
       window.electronAPI?.toggleOverlay(true);
     }
 
-    this.router.navigate(['/match']);
+    // Emit socket event - navigation happens via match-started listener
+    this.socketService.startMatch({
+      recording: this.enableRecording,
+      overlay: this.enableOverlay
+    });
   }
 }

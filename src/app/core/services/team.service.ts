@@ -29,6 +29,18 @@ export class TeamService {
     return VOICE_RULES[mode].canSpeak[player.role];
   });
 
+  readonly hasPriority = computed(() => {
+    const player = this.currentPlayer();
+    const mode = this._voiceMode();
+    if (!player) return false;
+    return VOICE_RULES[mode].hasPriority.includes(player.role);
+  });
+
+  readonly isDuckingEnabled = computed(() => {
+    const mode = this._voiceMode();
+    return VOICE_RULES[mode].duckingEnabled;
+  });
+
   readonly players = computed(() =>
     this._team()?.players ?? []
   );

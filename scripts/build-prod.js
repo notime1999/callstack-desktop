@@ -5,7 +5,7 @@ const path = require('path');
 // Get arguments
 const args = process.argv.slice(2);
 const shouldPublish = args.includes('publish');
-const serverUrl = args.find(arg => arg.startsWith('http')) || 'http://localhost:3001';
+const serverUrl = args.find(arg => arg.startsWith('http')) || 'https://callstack-be-production.up.railway.app';
 
 console.log('🔧 Building production version...');
 console.log(`📡 Server URL: ${serverUrl}`);

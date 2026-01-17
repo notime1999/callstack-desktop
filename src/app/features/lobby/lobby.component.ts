@@ -300,6 +300,12 @@ export class LobbyComponent implements OnInit {
     this.socketService.on('player-left', (playerId: string) => {
       console.log('[Lobby] Player left:', playerId);
     });
+
+    // Listen for match start (IGL started the match)
+    this.socketService.on('match-started', (matchState: any) => {
+      console.log('[Lobby] Match started, navigating to match:', matchState);
+      this.router.navigate(['/match']);
+    });
   }
 
   ngOnDestroy(): void {
