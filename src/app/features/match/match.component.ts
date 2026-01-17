@@ -47,13 +47,16 @@ import { VoiceMode, Player } from '../../shared/types';
         </div>
       </div>
 
-      <!-- Self Status -->
-      <div class="self-status">
+      <!-- Self Mute Control -->
+      <div class="self-mute-control">
+        <button 
+          class="btn-self-mute" 
+          [class.muted]="voiceService.isMuted()"
+          (click)="toggleSelfMute()">
+          {{ voiceService.isMuted() ? '🔇 Unmute Myself' : '🎤 Mute Myself' }}
+        </button>
         <span class="ptt-hint">
-          Push-to-talk: <kbd>SPACE</kbd>
-        </span>
-        <span class="mute-hint">
-          Mute: <kbd>M</kbd>
+          PTT: <kbd>SPACE</kbd> | Toggle: <kbd>M</kbd>
         </span>
       </div>
 
@@ -61,6 +64,34 @@ import { VoiceMode, Player } from '../../shared/types';
       <div class="speak-status" [class.can-speak]="canSpeak()" [class.muted]="!canSpeak()">
         {{ canSpeak() ? '🎤 You can speak' : '🔇 Muted by mode' }}
       </div>
+
+      <!-- Players List (for IGL/Coach to mute individuals) -->
+      @if (isIGL() || currentPlayer()?.role === 'coach') {
+        <div class="players-list-section">
+          <h3>TEAM</h3>
+          <div class="players-list">
+            @for (player of players(); track player.id) {
+              <div class="player-row" [class.is-me]="player.id === currentPlayer()?.id">
+                <span class="player-info">
+                  <span class="role-badge" [class]="player.role">{{ getRoleEmoji(player.role) }}</span>
+                  <span class="player-name">{{ player.name }}</span>
+                  @if (player.isSpeaking) {
+                    <span class="speaking-indicator">🔊</span>
+                  }
+                </span>
+                @if (player.id !== currentPlayer()?.id && player.role !== 'igl' && player.role !== 'coach') {
+                  <button 
+                    class="btn-mute-player" 
+                    [class.muted]="player.isMuted"
+                    (click)="mutePlayer(player.id)">
+                    {{ player.isMuted ? '🔇' : '🔊' }}
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
 
       <!-- IGL Controls -->
       @if (isIGL()) {
@@ -225,6 +256,87 @@ import { VoiceMode, Player } from '../../shared/types';
     .btn-mute-all:hover { background: #444; }
     .btn-mute-all.active { background: #22c55e; }
 
+    .self-mute-control {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px;
+      background: #252542;
+      border-radius: 6px;
+    }
+
+    .btn-self-mute {
+      padding: 8px 16px;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-self-mute:hover { background: #444; }
+    .btn-self-mute.muted { background: #ef4444; }
+
+    .players-list-section {
+      background: #252542;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .players-list-section h3 {
+      margin: 0 0 8px;
+      font-size: 11px;
+      color: #888;
+      letter-spacing: 1px;
+    }
+
+    .players-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .player-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      background: #1a1a2e;
+      border-radius: 6px;
+    }
+    .player-row.is-me { border: 1px solid #6366f1; }
+
+    .player-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .role-badge {
+      width: 24px;
+      text-align: center;
+    }
+
+    .player-name {
+      font-size: 13px;
+    }
+
+    .speaking-indicator {
+      animation: pulse 0.5s infinite;
+    }
+
+    .btn-mute-player {
+      padding: 4px 8px;
+      background: #333;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn-mute-player:hover { background: #444; }
+    .btn-mute-player.muted { background: #ef4444; }
+
     .mode-feedback {
       position: fixed;
       top: 50%;
@@ -248,7 +360,7 @@ import { VoiceMode, Player } from '../../shared/types';
 })
 export class MatchComponent implements OnInit, OnDestroy {
   private teamService = inject(TeamService);
-  private voiceService = inject(VoiceService);
+  voiceService = inject(VoiceService);  // Made public for template access
   private socketService = inject(SocketService);
   private router = inject(Router);
 
@@ -256,12 +368,27 @@ export class MatchComponent implements OnInit, OnDestroy {
   canSpeak = this.teamService.canSpeak;
   players = this.teamService.players;
   isIGL = this.teamService.isIGL;
+  currentPlayer = this.teamService.currentPlayer;
   allPlayersMuted = this.teamService.allPlayersMuted;
 
   showModeFeedback = false;
 
   getIGL(): Player | undefined {
     return this.players().find((p: Player) => p.role === 'igl');
+  }
+
+  getRoleEmoji(role: string): string {
+    const emojis: Record<string, string> = {
+      igl: '🎙️',
+      caller: '📢',
+      player: '🎮',
+      coach: '👁️'
+    };
+    return emojis[role] || '🎮';
+  }
+
+  toggleSelfMute() {
+    this.voiceService.toggleMute();
   }
 
   goBack() {
@@ -272,7 +399,25 @@ export class MatchComponent implements OnInit, OnDestroy {
 
   toggleMuteAll() {
     const currentlyMuted = this.allPlayersMuted();
-    this.teamService.muteAllPlayers(!currentlyMuted);
+    const shouldMute = !currentlyMuted;
+    
+    // Update team state (for UI)
+    this.teamService.muteAllPlayers(shouldMute);
+    
+    // Actually mute the audio in voice service
+    this.voiceService.muteAllPlayers(shouldMute, ['igl', 'coach']);
+  }
+
+  // Mute a specific player (IGL/coach only)
+  mutePlayer(playerId: string) {
+    if (!this.isIGL() && this.teamService.currentPlayer()?.role !== 'coach') return;
+    
+    const player = this.players().find(p => p.id === playerId);
+    if (!player) return;
+    
+    const shouldMute = !player.isMuted;
+    this.teamService.updatePlayer(playerId, { isMuted: shouldMute });
+    this.voiceService.mutePlayer(playerId, shouldMute);
   }
 
   @HostListener('window:keydown', ['$event'])
@@ -337,8 +482,10 @@ export class MatchComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    // Initialize voice engine
-    this.voiceService.initialize();
+    // Initialize voice engine if not already
+    if (!this.voiceService.isInitialized()) {
+      this.voiceService.initialize();
+    }
 
     // Listen for match end (IGL ended the match)
     this.socketService.on('match-ended', () => {
@@ -346,10 +493,18 @@ export class MatchComponent implements OnInit, OnDestroy {
       this.teamService.resetToLobbyMode();
       this.router.navigate(['/lobby']);
     });
+
+    // Listen for player updates (speaking state, mute, etc.)
+    this.socketService.on('player-updated', (player: any) => {
+      console.log('[Match] Player updated:', player);
+      this.teamService.updatePlayer(player.id, player);
+    });
   }
 
   ngOnDestroy() {
-    this.voiceService.destroy();
+    // Don't destroy voice service - keep it running for lobby
+    // Voice service persists across navigation
     this.socketService.off('match-ended');
+    this.socketService.off('player-updated');
   }
 }

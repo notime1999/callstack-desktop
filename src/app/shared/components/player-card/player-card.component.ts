@@ -40,6 +40,17 @@ import type { Player, PlayerRole } from '../../types';
         {{ getStatusLabel(player.status) }}
       </span>
 
+      <!-- Mute Button (for IGL/Coach to mute others) -->
+      @if (canMute && !isCurrentUser && player.role !== 'igl' && player.role !== 'coach') {
+        <button 
+          class="btn-mute" 
+          [class.muted]="player.isMuted"
+          (click)="onMuteClick($event)"
+          [title]="player.isMuted ? 'Unmute player' : 'Mute player'">
+          {{ player.isMuted ? '🔇' : '🔊' }}
+        </button>
+      }
+
       <!-- Role Selector (solo se canEdit) -->
       @if (canEdit) {
         <select 
@@ -123,13 +134,27 @@ import type { Player, PlayerRole } from '../../types';
       border-radius: 4px;
       font-size: 11px;
     }
+
+    .btn-mute {
+      padding: 4px 8px;
+      background: #333;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .btn-mute:hover { background: #444; }
+    .btn-mute.muted { background: #ef4444; }
   `]
 })
 export class PlayerCardComponent {
   @Input({ required: true }) player!: Player;
   @Input() isCurrentUser = false;
   @Input() canEdit = false;
+  @Input() canMute = false;
   @Output() roleChange = new EventEmitter<PlayerRole>();
+  @Output() muteToggle = new EventEmitter<string>();
 
   getRoleIcon(role: PlayerRole): string {
     const icons: Record<PlayerRole, string> = {
@@ -154,5 +179,10 @@ export class PlayerCardComponent {
   onRoleChange(event: Event) {
     const select = event.target as HTMLSelectElement;
     this.roleChange.emit(select.value as PlayerRole);
+  }
+
+  onMuteClick(event: Event) {
+    event.stopPropagation();
+    this.muteToggle.emit(this.player.id);
   }
 }

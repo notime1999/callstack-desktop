@@ -483,6 +483,52 @@ export class VoiceService {
     this._isMuted.set(false);
   }
 
+  // Mute a specific remote player's audio output (what you hear from them)
+  mutePlayer(playerId: string, muted: boolean): void {
+    console.log(`[VoiceService] Trying to mute player ${playerId}, available peers:`, Array.from(this.peers.keys()));
+    
+    const conn = this.peers.get(playerId);
+    if (conn) {
+      // Use gain node if available, otherwise use audio element
+      if (conn.gainNode && this.audioContext) {
+        const targetGain = muted ? 0.0 : 1.0;
+        conn.gainNode.gain.linearRampToValueAtTime(
+          targetGain,
+          this.audioContext.currentTime + 0.05
+        );
+        console.log(`[VoiceService] ${muted ? 'Muted' : 'Unmuted'} player ${playerId} via gain node`);
+      } else {
+        const audio = document.getElementById(`audio-${playerId}`) as HTMLAudioElement;
+        if (audio) {
+          audio.muted = muted;
+          console.log(`[VoiceService] ${muted ? 'Muted' : 'Unmuted'} player ${playerId} via audio element`);
+        } else {
+          console.log(`[VoiceService] No audio element found for player ${playerId}`);
+        }
+      }
+    } else {
+      // Try to find by audio element directly (fallback)
+      const audio = document.getElementById(`audio-${playerId}`) as HTMLAudioElement;
+      if (audio) {
+        audio.muted = muted;
+        console.log(`[VoiceService] ${muted ? 'Muted' : 'Unmuted'} player ${playerId} via fallback audio element`);
+      } else {
+        console.log(`[VoiceService] No peer connection found for player ${playerId}`);
+      }
+    }
+  }
+
+  // Mute all remote players except specified roles
+  muteAllPlayers(muted: boolean, exceptRoles: string[] = ['igl', 'coach']): void {
+    const players = this.teamService.players();
+    players.forEach(player => {
+      if (!exceptRoles.includes(player.role)) {
+        this.mutePlayer(player.id, muted);
+      }
+    });
+    console.log(`[VoiceService] ${muted ? 'Muted' : 'Unmuted'} all players except: ${exceptRoles.join(', ')}`);
+  }
+
   destroy(): void {
     // Stop local stream
     this.localStream?.getTracks().forEach(track => track.stop());

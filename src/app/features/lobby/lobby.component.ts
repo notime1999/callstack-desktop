@@ -44,6 +44,19 @@ import { GameType, PlayerRole, Team } from '../../shared/types';
         </div>
       </header>
 
+      <!-- Self Mute Control -->
+      <div class="self-mute-section">
+        <button 
+          class="btn-self-mute" 
+          [class.muted]="voiceService.isMuted()"
+          (click)="toggleSelfMute()">
+          {{ voiceService.isMuted() ? '🔇 Unmute Myself' : '🎤 Mute Myself' }}
+        </button>
+        @if (voiceService.isTalking()) {
+          <span class="speaking-indicator">🔊 Speaking...</span>
+        }
+      </div>
+
       <!-- Players List -->
       <section class="players-section">
         <h2>PLAYERS</h2>
@@ -58,7 +71,9 @@ import { GameType, PlayerRole, Team } from '../../shared/types';
               [player]="player"
               [isCurrentUser]="player.id === currentPlayer()?.id"
               [canEdit]="isIGL()"
+              [canMute]="isIGL() || currentPlayer()?.role === 'coach'"
               (roleChange)="onRoleChange(player.id, $event)"
+              (muteToggle)="onMutePlayer($event)"
               cdkDrag
               [cdkDragDisabled]="!isIGL()">
             </app-player-card>
@@ -210,6 +225,40 @@ import { GameType, PlayerRole, Team } from '../../shared/types';
       border-top: 1px solid #333;
     }
 
+    .self-mute-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: #252542;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .btn-self-mute {
+      padding: 10px 20px;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-self-mute:hover { background: #444; }
+    .btn-self-mute.muted { background: #ef4444; }
+
+    .speaking-indicator {
+      color: #22c55e;
+      font-size: 13px;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
     .btn-primary {
       flex: 1;
       padding: 16px;
@@ -236,7 +285,7 @@ import { GameType, PlayerRole, Team } from '../../shared/types';
 export class LobbyComponent implements OnInit {
   private teamService = inject(TeamService);
   private socketService = inject(SocketService);
-  private voiceService = inject(VoiceService);
+  voiceService = inject(VoiceService);  // Made public for template
   private router = inject(Router);
 
   team = this.teamService.team;
@@ -287,6 +336,12 @@ export class LobbyComponent implements OnInit {
       console.log('[Lobby] Player left:', playerId);
     });
 
+    // Listen for player updates (speaking state, mute, etc.)
+    this.socketService.on('player-updated', (player: any) => {
+      console.log('[Lobby] Player updated:', player);
+      this.teamService.updatePlayer(player.id, player);
+    });
+
     // Listen for match start (IGL started the match)
     this.socketService.on('match-started', (matchState: any) => {
       console.log('[Lobby] Match started, navigating to match:', matchState);
@@ -296,6 +351,7 @@ export class LobbyComponent implements OnInit {
 
   ngOnDestroy(): void {
     // Don't destroy voice service here - keep it running for match
+    this.socketService.off('player-updated');
   }
 
   getRoleLabel(role: PlayerRole): string {
@@ -308,6 +364,10 @@ export class LobbyComponent implements OnInit {
     return labels[role];
   }
 
+  toggleSelfMute() {
+    this.voiceService.toggleMute();
+  }
+
   onGameChange(event: Event) {
     const select = event.target as HTMLSelectElement;
     this.teamService.setGame(select.value as GameType);
@@ -315,6 +375,17 @@ export class LobbyComponent implements OnInit {
 
   onRoleChange(playerId: string, role: PlayerRole) {
     this.teamService.changeRole(playerId, role);
+  }
+
+  onMutePlayer(playerId: string) {
+    if (!this.isIGL() && this.currentPlayer()?.role !== 'coach') return;
+    
+    const player = this.players().find(p => p.id === playerId);
+    if (!player) return;
+    
+    const shouldMute = !player.isMuted;
+    this.teamService.updatePlayer(playerId, { isMuted: shouldMute });
+    this.voiceService.mutePlayer(playerId, shouldMute);
   }
 
   onPlayerDrop(event: CdkDragDrop<unknown>) {
