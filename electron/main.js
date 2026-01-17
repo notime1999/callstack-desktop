@@ -151,7 +151,10 @@ function createWindow() {
         if (autoUpdater) {
             setTimeout(() => {
                 log('Checking for updates...');
-                autoUpdater.checkForUpdates().catch((err) => {
+                log('[AutoUpdater] Checking for updates...');
+                autoUpdater.checkForUpdates().then((result) => {
+                    log(`[AutoUpdater] Check result: ${JSON.stringify(result?.updateInfo || 'no info')}`);
+                }).catch((err) => {
                     log(`[AutoUpdater] Check failed: ${err.message}`);
                 });
             }, 3000);
