@@ -425,6 +425,22 @@ export class VoiceService {
     const currentPlayer = this.teamService.currentPlayer();
     if (currentPlayer) {
       this.socketService.emit('update-player', { isSpeaking });
+      
+      // If I have priority and I'm speaking, duck non-priority peers
+      const mode = this.teamService.voiceMode();
+      const rules = VOICE_RULES[mode];
+      const iAmPriority = rules.hasPriority.includes(currentPlayer.role);
+      
+      if (iAmPriority && rules.duckingEnabled) {
+        if (isSpeaking) {
+          this.applyDuckingToAllPeers(true);
+          console.log(`[VoiceService] I'm priority (${currentPlayer.role}) and speaking - ducking others`);
+        } else if (this.duckingState.prioritySpeakers.size === 0) {
+          // Only restore if no other priority speakers
+          this.applyDuckingToAllPeers(false);
+          console.log(`[VoiceService] I stopped speaking and no other priority speakers - restoring volumes`);
+        }
+      }
     }
   }
 
@@ -515,15 +531,29 @@ export class VoiceService {
     }
   }
 
-  // Apply ducking to all peer audio
+  // Apply ducking to non-priority players and boost priority players
   private applyDuckingToAllPeers(enabled: boolean): void {
-    const targetVolume = enabled ? this.duckingState.duckingLevel : 1.0;
+    const mode = this.teamService.voiceMode();
+    const rules = VOICE_RULES[mode];
+    const players = this.teamService.players();
     
-    // Use audio element volume for ducking (simpler and more reliable)
     this.peers.forEach((conn) => {
       const audio = document.getElementById(`audio-${conn.peerId}`) as HTMLAudioElement;
-      if (audio) {
-        audio.volume = targetVolume;
+      if (!audio) return;
+      
+      // Find the player associated with this peer
+      const player = players.find(p => p.id === conn.peerId);
+      
+      if (player && rules.hasPriority.includes(player.role)) {
+        // Priority player (IGL/Coach) - keep at full volume or slightly boost
+        audio.volume = enabled ? 1.0 : 1.0;
+        console.log(`[VoiceService] Priority player ${player.name} volume: ${audio.volume}`);
+      } else {
+        // Non-priority player - apply ducking
+        audio.volume = enabled ? this.duckingState.duckingLevel : 1.0;
+        if (player) {
+          console.log(`[VoiceService] Non-priority player ${player.name} volume: ${audio.volume}`);
+        }
       }
     });
   }

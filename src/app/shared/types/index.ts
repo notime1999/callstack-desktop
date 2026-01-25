@@ -72,7 +72,7 @@ export const VOICE_RULES: Record<VoiceMode, VoiceRules> = {
     mode: 'prep',
     canSpeak: { igl: true, caller: false, player: false, coach: true },
     hasPriority: ['igl', 'coach'],
-    duckingEnabled: false
+    duckingEnabled: true
   }
 };
 
